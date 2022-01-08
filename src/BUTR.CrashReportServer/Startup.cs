@@ -3,7 +3,6 @@
 using BUTR.CrashReportServer.Options;
 using BUTR.CrashReportServer.Services;
 
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
