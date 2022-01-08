@@ -24,5 +24,6 @@ FROM mcr.microsoft.com/dotnet/runtime-deps:6.0-alpine
 WORKDIR /app
 COPY --from=build /build/output .
 
+LABEL org.opencontainers.image.source="https://github.com/BUTR/BUTR.CrashReportServer"
 EXPOSE 80
 ENTRYPOINT ["./BUTR.CrashReportServer.Front"]
