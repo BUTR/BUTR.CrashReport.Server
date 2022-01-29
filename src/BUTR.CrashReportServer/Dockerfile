@@ -26,4 +26,4 @@ COPY --from=build /build/output .
 
 LABEL org.opencontainers.image.source="https://github.com/BUTR/BUTR.CrashReportServer"
 EXPOSE 80
-ENTRYPOINT ["./BUTR.CrashReportServer.Front"]
+ENTRYPOINT ["./BUTR.CrashReportServer"]
