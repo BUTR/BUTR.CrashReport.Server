@@ -33,8 +33,8 @@ namespace BUTR.CrashReportServer.Services
 
         private string? GetHex(CancellationToken ct)
         {
-            Span<byte> buffer = stackalloc byte[5];
-            Span<char> buffer2 = stackalloc char[10];
+            Span<byte> buffer = stackalloc byte[3];
+            Span<char> buffer2 = stackalloc char[6];
             while (!ct.IsCancellationRequested)
             {
                 _random.NextBytes(buffer);
