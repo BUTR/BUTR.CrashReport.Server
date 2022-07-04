@@ -47,14 +47,14 @@ namespace BUTR.CrashReportServer.Controllers
                 return StatusCode((int) HttpStatusCode.InternalServerError);
 
             if (!string.Equals(Path.GetExtension(filename), ".html", StringComparison.Ordinal))
-                return StatusCode((int) HttpStatusCode.InternalServerError);
+                filename += ".html";
 
             if (ValidateFileName(Path.GetFileNameWithoutExtension(filename)))
                 return StatusCode((int) HttpStatusCode.InternalServerError);
 
             var filePath = Path.GetFullPath(Path.Combine(_options.Path ?? string.Empty, filename));
             if (!System.IO.File.Exists(filePath))
-                return StatusCode((int) HttpStatusCode.InternalServerError);
+                return StatusCode((int) HttpStatusCode.NotFound);
 
             return PhysicalFile(filePath, "text/html; charset=utf-8", true);
             //var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
