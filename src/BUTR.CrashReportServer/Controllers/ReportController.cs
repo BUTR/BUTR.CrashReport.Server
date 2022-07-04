@@ -35,7 +35,7 @@ namespace BUTR.CrashReportServer.Controllers
         private static bool IsInRange(char c, char min, char max) => (uint) (c - min) <= (uint) (max - min);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool ValidateFileName(string fileName) => fileName.Length != 8 || !fileName.All(IsHex);
+        private static bool ValidateFileName(string fileName) => fileName.Length is 8 or 10 && fileName.All(IsHex);
 
         [AllowAnonymous]
         [HttpGet("report/{filename}")]
