@@ -81,7 +81,7 @@ namespace BUTR.CrashReportServer.Controllers
         [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
         public IActionResult List() => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)
-            .Where(ValidateFileName)
-            .Select(Path.GetFileName));
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(ValidateFileName));
     }
 }
