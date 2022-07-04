@@ -15,7 +15,7 @@ using System.Runtime.CompilerServices;
 namespace BUTR.CrashReportServer.Controllers
 {
     [ApiController]
-    [Route("/")]
+    [Route("/report")]
     public class ReportController : ControllerBase
     {
         private readonly ILogger _logger;
@@ -38,7 +38,7 @@ namespace BUTR.CrashReportServer.Controllers
         private static bool ValidateFileName(string fileName) => fileName.Length is 8 or 10 && fileName.All(IsHex);
 
         [AllowAnonymous]
-        [HttpGet("report/{filename}")]
+        [HttpGet("{filename}")]
         [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "text/html")]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
         public IActionResult Report(string filename)
@@ -49,7 +49,7 @@ namespace BUTR.CrashReportServer.Controllers
             if (!string.Equals(Path.GetExtension(filename), ".html", StringComparison.Ordinal))
                 filename += ".html";
 
-            if (ValidateFileName(Path.GetFileNameWithoutExtension(filename)))
+            if (!ValidateFileName(Path.GetFileNameWithoutExtension(filename)))
                 return StatusCode((int) HttpStatusCode.InternalServerError);
 
             var filePath = Path.GetFullPath(Path.Combine(_options.Path ?? string.Empty, filename));
@@ -62,7 +62,7 @@ namespace BUTR.CrashReportServer.Controllers
         }
 
         [Authorize]
-        [HttpDelete("report/{filename}")]
+        [HttpDelete("{filename}")]
         [ProducesResponseType(typeof(void), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
@@ -77,7 +77,7 @@ namespace BUTR.CrashReportServer.Controllers
         }
 
         [Authorize]
-        [HttpGet("report")]
+        [HttpGet("")]
         [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
         public IActionResult List() => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)
