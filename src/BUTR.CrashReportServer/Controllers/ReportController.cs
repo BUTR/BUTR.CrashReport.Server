@@ -1,4 +1,5 @@
-﻿using BUTR.CrashReportServer.Options;
+﻿using BUTR.CrashReportServer.Models;
+using BUTR.CrashReportServer.Options;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -80,8 +82,18 @@ namespace BUTR.CrashReportServer.Controllers
         [HttpGet("GetAllFilenames")]
         [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-        public IActionResult List() => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)
+        public IActionResult GetAllFilenames() => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileNameWithoutExtension)
             .Where(ValidateFileName));
+            
+        [Authorize]
+        [HttpPost("GetFilenameDates")]
+        [ProducesResponseType(typeof(FilenameDate[]), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+        public IActionResult GetFilenameDates(ICollection<string> filenames) => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileNameWithoutExtension)
+            .OfType<string>()
+            .Where(filenames.Contains)
+            .Select(x => new FilenameDate(x, new FileInfo(Path.GetFullPath(Path.Combine(_options.Path ?? string.Empty, $"{x}.html"))).CreationTimeUtc.ToString("O"))));
     }
 }

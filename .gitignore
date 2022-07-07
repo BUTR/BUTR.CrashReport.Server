@@ -352,3 +352,4 @@ MigrationBackup/
 /build/*
 /src/BUTR.CrashReportServer/pub/report/*
 /src/swagger.json
+/src/BUTR.CrashReportServer/.config/dotnet-tools.json
