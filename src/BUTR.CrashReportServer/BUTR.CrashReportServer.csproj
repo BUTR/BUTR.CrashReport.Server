@@ -18,7 +18,7 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.3.1" />
   </ItemGroup>
 
-  <Target Condition="$(DOTNET_RUNNING_IN_CONTAINER) != 'true'" Name="_ResolveCopyLocalNuGetPkgXmls" AfterTargets="ResolveReferences">
+  <Target Name="_ResolveCopyLocalNuGetPkgXmls" AfterTargets="ResolveReferences">
     <ItemGroup>
       <!-- Copy XML files from all PackageReferences to output dir -->
       <ReferenceCopyLocalPaths Include="@(ReferenceCopyLocalPaths->'%(RootDir)%(Directory)%(Filename).xml')" Condition="'%(ReferenceCopyLocalPaths.NuGetPackageId)'!='' and Exists('%(RootDir)%(Directory)%(Filename).xml')" />
