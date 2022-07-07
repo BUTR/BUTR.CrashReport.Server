@@ -351,3 +351,4 @@ MigrationBackup/
 *.sqlite3
 /build/*
 /src/BUTR.CrashReportServer/pub/report/*
+/src/swagger.json

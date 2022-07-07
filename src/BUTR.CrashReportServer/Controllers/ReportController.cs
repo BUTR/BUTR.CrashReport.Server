@@ -62,7 +62,7 @@ namespace BUTR.CrashReportServer.Controllers
         }
 
         [Authorize]
-        [HttpDelete("{filename}")]
+        [HttpDelete("Delete/{filename}")]
         [ProducesResponseType(typeof(void), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
@@ -77,7 +77,7 @@ namespace BUTR.CrashReportServer.Controllers
         }
 
         [Authorize]
-        [HttpGet("")]
+        [HttpGet("GetAllFilenames")]
         [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
         public IActionResult List() => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)

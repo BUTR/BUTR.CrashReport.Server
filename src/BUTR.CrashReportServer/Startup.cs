@@ -8,10 +8,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -37,14 +39,46 @@ namespace BUTR.CrashReportServer
 
             services.AddSingleton<IFilePathProvider, SemaphoreFilePathProvider>();
 
-            services.AddSwaggerGen(options =>
+            services.AddSwaggerGen(opt =>
             {
-                options.SwaggerDoc("v1", new OpenApiInfo { Title = _appName, Version = "v1" });
-                options.SupportNonNullableReferenceTypes();
+                opt.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Version = "v1",
+                    Title = "BUTR's Crash Report Server",
+                    Description = "BUTR's service used for ingesting crash reports",
+                });
+                
+                var basicSecurityScheme = new OpenApiSecurityScheme
+                {
+                    Scheme = BasicDefaults.AuthenticationScheme,
+                    Name = HeaderNames.Authorization,
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.Http,  
+                    Description = "Basic Authorization header using the Bearer scheme."  ,
 
-                var xmlFile = $"{_appName}.xml";
-                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-                options.IncludeXmlComments(xmlPath);
+                    Reference = new OpenApiReference
+                    {
+                        Id = BasicDefaults.AuthenticationScheme,
+                        Type = ReferenceType.SecurityScheme
+                    }
+                };
+                opt.AddSecurityDefinition(basicSecurityScheme.Reference.Id, basicSecurityScheme);
+                opt.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    { basicSecurityScheme, Array.Empty<string>() }
+                });
+
+                opt.DescribeAllParametersInCamelCase();
+                opt.SupportNonNullableReferenceTypes();
+
+                var currentAssembly = Assembly.GetExecutingAssembly();
+                var xmlFilePaths = currentAssembly.GetReferencedAssemblies()
+                    .Append(currentAssembly.GetName())
+                    .Select(x => Path.Combine(Path.GetDirectoryName(currentAssembly.Location)!, $"{x.Name}.xml"))
+                    .Where(File.Exists)
+                    .ToList();
+                foreach (var xmlFilePath in xmlFilePaths)
+                    opt.IncludeXmlComments(xmlFilePath);
             });
 
             services.AddAuthentication(BasicDefaults.AuthenticationScheme)
@@ -67,9 +101,10 @@ namespace BUTR.CrashReportServer
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
-                app.UseSwagger();
-                app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", _appName));
             }
+            
+            app.UseSwagger();
+            app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", _appName));
 
             app.UseRouting();
 
