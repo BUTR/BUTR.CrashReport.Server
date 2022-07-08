@@ -47,14 +47,14 @@ namespace BUTR.CrashReportServer
                     Title = "BUTR's Crash Report Server",
                     Description = "BUTR's service used for ingesting crash reports",
                 });
-                
+
                 var basicSecurityScheme = new OpenApiSecurityScheme
                 {
                     Scheme = BasicDefaults.AuthenticationScheme,
                     Name = HeaderNames.Authorization,
                     In = ParameterLocation.Header,
-                    Type = SecuritySchemeType.Http,  
-                    Description = "Basic Authorization header using the Bearer scheme."  ,
+                    Type = SecuritySchemeType.Http,
+                    Description = "Basic Authorization header using the Bearer scheme.",
 
                     Reference = new OpenApiReference
                     {
@@ -102,7 +102,7 @@ namespace BUTR.CrashReportServer
             {
                 app.UseDeveloperExceptionPage();
             }
-            
+
             app.UseSwagger();
             app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", _appName));
 
