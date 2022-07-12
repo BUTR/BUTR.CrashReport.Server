@@ -85,7 +85,7 @@ namespace BUTR.CrashReportServer.Controllers
         public IActionResult GetAllFilenames() => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileNameWithoutExtension)
             .Where(ValidateFileName));
-            
+
         [Authorize]
         [HttpPost("GetFilenameDates")]
         [ProducesResponseType(typeof(FilenameDate[]), StatusCodes.Status200OK)]
