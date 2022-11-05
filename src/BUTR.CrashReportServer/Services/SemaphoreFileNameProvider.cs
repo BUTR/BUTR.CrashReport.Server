@@ -41,14 +41,14 @@ namespace BUTR.CrashReportServer.Services
                 HexConverter.GetChars(buffer, buffer2);
                 for (var i = 0; i < buffer2.Length; i++)
                     buffer2[i] = char.ToUpper(buffer2[i]);
-                
+
                 var filePath = Path.GetFullPath(Path.Combine(_options.Path ?? string.Empty, $"{buffer2}.html"));
                 if (!File.Exists(filePath))
                     return filePath;
             }
             return null;
         }
-        
+
         public async Task<string?> GenerateUniqueFilePath(CancellationToken ct)
         {
             try
