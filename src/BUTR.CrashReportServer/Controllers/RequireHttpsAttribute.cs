@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 using System;
+using System.IO;
 using System.Security.Authentication;
 
 namespace BUTR.CrashReportServer.Controllers
@@ -24,11 +25,18 @@ namespace BUTR.CrashReportServer.Controllers
             if (filterContext == null)
                 throw new ArgumentNullException(nameof(filterContext));
 
-            if (!filterContext.HttpContext.Request.IsHttps ||
-                filterContext.HttpContext.Features.Get<ITlsHandshakeFeature>() is not { } tlsHandshakeFeature ||
-                tlsHandshakeFeature.Protocol < Protocol)
+            if (filterContext.HttpContext.Features.Get<ITlsHandshakeFeature>() is not { } tlsHandshakeFeature)
             {
-                filterContext.Result = new ObjectResult(new TLSError($"TLS minimally supported version: {Protocol}"))
+                if (filterContext.HttpContext.Request.IsHttps)
+                {
+                    throw new InvalidOperationException($"ITlsHandshakeFeature is not found when https is enabled");
+                }
+                return;
+            }
+
+            if (tlsHandshakeFeature.Protocol < Protocol)
+            {
+                filterContext.Result = new ObjectResult(new TLSError($"TLS minimally supported version: {Protocol}; Got version: {tlsHandshakeFeature.Protocol}"))
                 {
                     StatusCode = StatusCodes.Status400BadRequest
                 };
