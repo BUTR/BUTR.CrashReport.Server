@@ -24,9 +24,9 @@ namespace BUTR.CrashReportServer.Controllers
             if (filterContext == null)
                 throw new ArgumentNullException(nameof(filterContext));
 
-            var tlsHandshakeFeature = filterContext.HttpContext.Features.Get<ITlsHandshakeFeature>();
-            if (tlsHandshakeFeature is null || tlsHandshakeFeature.Protocol < Protocol)
-                filterContext.Result = new StatusCodeResult(StatusCodes.Status400BadRequest);
+            //var tlsHandshakeFeature = filterContext.HttpContext.Features.Get<ITlsHandshakeFeature>();
+            //if (tlsHandshakeFeature is null || tlsHandshakeFeature.Protocol < Protocol)
+            //    filterContext.Result = new StatusCodeResult(StatusCodes.Status400BadRequest);
         }
     }
 }
