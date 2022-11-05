@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 
+using System.Security.Authentication;
 using System.Threading.Tasks;
 
 namespace BUTR.CrashReportServer
@@ -20,6 +21,14 @@ namespace BUTR.CrashReportServer
             .CreateDefaultBuilder(args)
             .ConfigureWebHostDefaults(webBuilder =>
             {
+                webBuilder.UseKestrel(kestrelOptions =>
+                {
+                    kestrelOptions.ConfigureHttpsDefaults(httpsOptions =>
+                    {
+                        httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12 | SslProtocols.Tls13;
+                    });
+                });
+
                 webBuilder.UseStartup<Startup>();
             });
     }

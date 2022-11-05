@@ -13,11 +13,13 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Security.Authentication;
 
 namespace BUTR.CrashReportServer.Controllers
 {
     [ApiController]
     [Route("/report")]
+    [HttpsProtocol(Protocol = SslProtocols.Tls12)]
     public class ReportController : ControllerBase
     {
         private readonly ILogger _logger;
@@ -64,6 +66,7 @@ namespace BUTR.CrashReportServer.Controllers
         }
 
         [Authorize]
+        [RequireHttps()]
         [HttpDelete("Delete/{filename}")]
         [ProducesResponseType(typeof(void), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound)]
