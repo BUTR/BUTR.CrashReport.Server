@@ -19,7 +19,6 @@ namespace BUTR.CrashReportServer.Controllers
 {
     [ApiController]
     [Route("/report")]
-    [HttpsProtocol(Protocol = SslProtocols.Tls12)]
     public class ReportController : ControllerBase
     {
         private readonly ILogger _logger;
@@ -39,7 +38,7 @@ namespace BUTR.CrashReportServer.Controllers
         private static bool IsInRange(char c, char min, char max) => (uint) (c - min) <= (uint) (max - min);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool ValidateFileName(string fileName) => fileName.Length is 6 or 8 or 10 && fileName.All(IsHex);
+        private static bool ValidateFileName(string? fileName) => fileName?.Length is 6 or 8 or 10 && fileName.All(IsHex);
 
         [AllowAnonymous]
         [HttpGet("{filename}")]
@@ -61,8 +60,6 @@ namespace BUTR.CrashReportServer.Controllers
                 return StatusCode((int) HttpStatusCode.NotFound);
 
             return PhysicalFile(filePath, "text/html; charset=utf-8", true);
-            //var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            //return File(fs, "text/html; charset=utf-8", true);
         }
 
         [Authorize]
@@ -70,6 +67,8 @@ namespace BUTR.CrashReportServer.Controllers
         [ProducesResponseType(typeof(void), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+        [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
+        [HttpsProtocol(Protocol = SslProtocols.Tls12)]
         public IActionResult Delete(string filename)
         {
             var filePath = Path.GetFullPath(Path.Combine(_options.Path ?? string.Empty, filename));
@@ -84,6 +83,8 @@ namespace BUTR.CrashReportServer.Controllers
         [HttpGet("GetAllFilenames")]
         [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+        [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
+        [HttpsProtocol(Protocol = SslProtocols.Tls12)]
         public IActionResult GetAllFilenames() => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileNameWithoutExtension)
             .Where(ValidateFileName));
@@ -92,6 +93,8 @@ namespace BUTR.CrashReportServer.Controllers
         [HttpPost("GetFilenameDates")]
         [ProducesResponseType(typeof(FilenameDate[]), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+        [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
+        [HttpsProtocol(Protocol = SslProtocols.Tls12)]
         public IActionResult GetFilenameDates(ICollection<string> filenames) => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileNameWithoutExtension)
             .OfType<string>()

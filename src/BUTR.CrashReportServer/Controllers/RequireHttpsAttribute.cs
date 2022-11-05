@@ -1,9 +1,9 @@
-﻿using Microsoft.AspNetCore.Connections.Features;
+﻿using BUTR.CrashReportServer.Models;
+
+using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 using System;
 using System.Security.Authentication;
@@ -24,9 +24,15 @@ namespace BUTR.CrashReportServer.Controllers
             if (filterContext == null)
                 throw new ArgumentNullException(nameof(filterContext));
 
-            //var tlsHandshakeFeature = filterContext.HttpContext.Features.Get<ITlsHandshakeFeature>();
-            //if (tlsHandshakeFeature is null || tlsHandshakeFeature.Protocol < Protocol)
-            //    filterContext.Result = new StatusCodeResult(StatusCodes.Status400BadRequest);
+            if (!filterContext.HttpContext.Request.IsHttps ||
+                filterContext.HttpContext.Features.Get<ITlsHandshakeFeature>() is not { } tlsHandshakeFeature ||
+                tlsHandshakeFeature.Protocol < Protocol)
+            {
+                filterContext.Result = new ObjectResult(new TLSError($"TLS minimally supported version: {Protocol}"))
+                {
+                    StatusCode = StatusCodes.Status400BadRequest
+                };
+            }
         }
     }
 }
