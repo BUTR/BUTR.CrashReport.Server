@@ -66,7 +66,6 @@ namespace BUTR.CrashReportServer.Controllers
         }
 
         [Authorize]
-        [RequireHttps()]
         [HttpDelete("Delete/{filename}")]
         [ProducesResponseType(typeof(void), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound)]
