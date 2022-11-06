@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 using System;
-using System.IO;
 using System.Security.Authentication;
 
 namespace BUTR.CrashReportServer.Controllers
@@ -14,9 +13,7 @@ namespace BUTR.CrashReportServer.Controllers
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
     public sealed class HttpsProtocolAttribute : Attribute, IAuthorizationFilter, IOrderedFilter
     {
-        /// <inheritdoc />
-        /// <value>Default is <c>int.MinValue + 50</c> to run this <see cref="IAuthorizationFilter"/> early.</value>
-        public int Order { get; set; } = int.MinValue + 50;
+        public int Order => int.MinValue + 50;
 
         public SslProtocols Protocol { get; set; }
 
@@ -29,7 +26,7 @@ namespace BUTR.CrashReportServer.Controllers
             {
                 if (filterContext.HttpContext.Request.IsHttps)
                 {
-                    throw new InvalidOperationException($"ITlsHandshakeFeature is not found when https is enabled");
+                    throw new InvalidOperationException("ITlsHandshakeFeature is not found when https is enabled");
                 }
                 return;
             }

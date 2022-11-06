@@ -46,7 +46,7 @@ namespace BUTR.CrashReportServer.Controllers
 
             await using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
             await Request.Body.CopyToAsync(fs, ct);
-            return Created($"{_options.BaseUri}/{Path.GetFileName(filePath)}", $"{_options.BaseUri}/{Path.GetFileName(filePath)}");
+            return Ok($"{_options.BaseUri}/{Path.GetFileName(filePath)}");
         }
     }
 }
