@@ -12,8 +12,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using DirectoryInfo = System.IO.DirectoryInfo;
-
 namespace BUTR.CrashReportServer.Services
 {
     public sealed class FileSystemMigrator : BackgroundService
