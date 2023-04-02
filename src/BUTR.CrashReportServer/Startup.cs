@@ -1,13 +1,16 @@
 ﻿using AspNetCore.Authentication.Basic;
 
+using BUTR.CrashReportServer.Contexts;
 using BUTR.CrashReportServer.Options;
 using BUTR.CrashReportServer.Services;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IO;
 using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
 
@@ -37,8 +40,12 @@ namespace BUTR.CrashReportServer
             services.Configure<StorageOptions>(_configuration.GetSection("Storage"));
             services.Configure<CrashUploadOptions>(_configuration.GetSection("CrashUpload"));
 
-            services.AddSingleton<IFilePathProvider, SemaphoreFilePathProvider>();
+            services.AddSingleton<RecyclableMemoryStreamManager>();
+            services.AddSingleton<Random>();
+            services.AddHostedService<FileSystemMigrator>();
 
+            services.AddDbContext<AppDbContext>(x => x.UseSqlite(_configuration.GetConnectionString("Main")));
+            
             services.AddSwaggerGen(opt =>
             {
                 opt.SwaggerDoc("v1", new OpenApiInfo

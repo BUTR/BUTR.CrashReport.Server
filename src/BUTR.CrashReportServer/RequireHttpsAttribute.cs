@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using System;
 using System.Security.Authentication;
 
-namespace BUTR.CrashReportServer.Controllers
+namespace BUTR.CrashReportServer
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
     public sealed class HttpsProtocolAttribute : Attribute, IAuthorizationFilter, IOrderedFilter

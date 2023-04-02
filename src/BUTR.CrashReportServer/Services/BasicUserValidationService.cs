@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace BUTR.CrashReportServer.Services
 {
-    internal class BasicUserValidationService : IBasicUserValidationService
+    public sealed class BasicUserValidationService : IBasicUserValidationService
     {
         private readonly ILogger _logger;
         private readonly AuthOptions _options;

@@ -1,19 +1,23 @@
-﻿using BUTR.CrashReportServer.Models;
-using BUTR.CrashReportServer.Options;
+﻿using BUTR.CrashReportServer.Contexts;
+using BUTR.CrashReportServer.Models;
+using BUTR.CrashReportServer.Models.API;
+using BUTR.CrashReportServer.Models.Database;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Security.Authentication;
+using System.Threading.Tasks;
 
 namespace BUTR.CrashReportServer.Controllers
 {
@@ -22,14 +26,13 @@ namespace BUTR.CrashReportServer.Controllers
     public class ReportController : ControllerBase
     {
         private readonly ILogger _logger;
-        private readonly StorageOptions _options;
+        private readonly AppDbContext _dbContext;
 
-        public ReportController(ILogger<ReportController> logger, IOptionsSnapshot<StorageOptions> options)
+        public ReportController(ILogger<ReportController> logger, AppDbContext dbContext)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _options = options.Value ?? throw new ArgumentNullException(nameof(options));
+            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsHex(char c) => IsInRange(c, 'A', 'F') || IsInRange(c, '0', '9');
@@ -44,7 +47,7 @@ namespace BUTR.CrashReportServer.Controllers
         [HttpGet("{filename}")]
         [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "text/html")]
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-        public IActionResult Report(string filename)
+        public async Task<IActionResult> Report(string filename)
         {
             if (string.IsNullOrEmpty(filename))
                 return StatusCode((int) HttpStatusCode.InternalServerError);
@@ -55,11 +58,15 @@ namespace BUTR.CrashReportServer.Controllers
             if (!ValidateFileName(Path.GetFileNameWithoutExtension(filename)))
                 return StatusCode((int) HttpStatusCode.InternalServerError);
 
-            var filePath = Path.GetFullPath(Path.Combine(_options.Path ?? string.Empty, filename));
-            if (!System.IO.File.Exists(filePath))
+            if (await _dbContext.Set<FileEntity>().FirstOrDefaultAsync(x => x.Name == filename) is not { } file)
                 return StatusCode((int) HttpStatusCode.NotFound);
 
-            return PhysicalFile(filePath, "text/html; charset=utf-8", true);
+            if (Request.GetTypedHeaders().AcceptEncoding.Any(x => x.Value.Equals("gzip", StringComparison.InvariantCultureIgnoreCase)))
+            {
+                Response.Headers.ContentEncoding = "gzip";
+                return File(file.DataCompressed, "text/html; charset=utf-8", true);
+            }
+            return File(new GZipStream(new MemoryStream(file.DataCompressed), CompressionMode.Decompress), "text/html; charset=utf-8", true);
         }
 
         [Authorize]
@@ -69,13 +76,11 @@ namespace BUTR.CrashReportServer.Controllers
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
         [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
         [HttpsProtocol(Protocol = SslProtocols.Tls12)]
-        public IActionResult Delete(string filename)
+        public async Task<IActionResult> Delete(string filename)
         {
-            var filePath = Path.GetFullPath(Path.Combine(_options.Path ?? string.Empty, filename));
-            if (!System.IO.File.Exists(filePath))
-                return NotFound();
+            if (await _dbContext.Set<FileEntity>().Where(x => x.Name == filename).ExecuteDeleteAsync() == 0)
+                return StatusCode((int) HttpStatusCode.NotFound);
 
-            System.IO.File.Delete(filePath);
             return Ok();
         }
 
@@ -85,9 +90,15 @@ namespace BUTR.CrashReportServer.Controllers
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
         [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
         [HttpsProtocol(Protocol = SslProtocols.Tls12)]
-        public IActionResult GetAllFilenames() => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)
-            .Select(Path.GetFileNameWithoutExtension)
-            .Where(ValidateFileName));
+        public IActionResult GetAllFilenames()
+        {
+            return Ok(_dbContext.Set<FileEntity>()
+                .Select(x => x.Name)
+                .Where(x => EF.Functions.Like(x, "%.html"))
+                .AsEnumerable()
+                .Select(Path.GetFileNameWithoutExtension)
+                .Where(ValidateFileName));
+        }
 
         [Authorize]
         [HttpPost("GetFilenameDates")]
@@ -95,10 +106,19 @@ namespace BUTR.CrashReportServer.Controllers
         [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
         [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
         [HttpsProtocol(Protocol = SslProtocols.Tls12)]
-        public IActionResult GetFilenameDates(ICollection<string> filenames) => Ok(Directory.EnumerateFiles(_options.Path ?? string.Empty, "*.html", SearchOption.TopDirectoryOnly)
-            .Select(Path.GetFileNameWithoutExtension)
-            .OfType<string>()
-            .Where(filenames.Contains)
-            .Select(x => new FilenameDate(x, new FileInfo(Path.GetFullPath(Path.Combine(_options.Path ?? string.Empty, $"{x}.html"))).CreationTimeUtc.ToString("O"))));
+        public IActionResult GetFilenameDates(ICollection<string> filenames)
+        {
+            var filenamesWithExtension = filenames.Select(x =>
+            {
+                if (!string.Equals(Path.GetExtension(x), ".html", StringComparison.Ordinal))
+                    x += ".html";
+                return x;
+            }).ToArray();
+            
+            return Ok(_dbContext.Set<FileEntity>()
+                .Where(x => filenamesWithExtension.Contains(x.Name))
+                .AsEnumerable()
+                .Select(x => new FilenameDate(x.Name, x.Created.ToString("O"))));
+        }
     }
 }
