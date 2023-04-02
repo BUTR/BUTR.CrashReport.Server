@@ -118,7 +118,7 @@ namespace BUTR.CrashReportServer.Controllers
             return Ok(_dbContext.Set<FileEntity>()
                 .Where(x => filenamesWithExtension.Contains(x.Name))
                 .AsEnumerable()
-                .Select(x => new FilenameDate(x.Name, x.Created.ToString("O"))));
+                .Select(x => new FilenameDate(Path.GetFileNameWithoutExtension(x.Name), x.Created.ToString("O"))));
         }
     }
 }
