@@ -42,6 +42,7 @@ namespace BUTR.CrashReportServer
 
             services.AddSingleton<RecyclableMemoryStreamManager>();
             services.AddSingleton<Random>();
+            services.AddSingleton<GZipCompressor>();
             services.AddHostedService<FileSystemMigrator>();
 
             services.AddDbContext<AppDbContext>(x => x.UseSqlite(_configuration.GetConnectionString("Main")));

@@ -2,6 +2,7 @@
 using BUTR.CrashReportServer.Models.Database;
 using BUTR.CrashReportServer.Options;
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
@@ -15,19 +16,22 @@ namespace BUTR.CrashReportServer.Services
 {
     public sealed class FileSystemMigrator : BackgroundService
     {
-        private readonly AppDbContext _dbContext;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly StorageOptions _storageOptions;
         private readonly GZipCompressor _gZipCompressor;
 
-        public FileSystemMigrator(AppDbContext dbContext, IOptions<StorageOptions> storageOptions, GZipCompressor gZipCompressor)
+        public FileSystemMigrator(IServiceScopeFactory scopeFactory, IOptions<StorageOptions> storageOptions, GZipCompressor gZipCompressor)
         {
-            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
             _storageOptions = storageOptions.Value ?? throw new ArgumentNullException(nameof(storageOptions));
             _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            
             var path = _storageOptions.Path ?? string.Empty;
             Directory.CreateDirectory(Path.Combine(path, "copied"));
             
@@ -41,7 +45,7 @@ namespace BUTR.CrashReportServer.Services
                 foreach (var file in files)
                 {
                     using var compressed = await _gZipCompressor.CompressAsync(file.OpenRead(), stoppingToken);
-                    await _dbContext.Set<FileEntity>().AddAsync(new FileEntity
+                    await dbContext.Set<FileEntity>().AddAsync(new FileEntity
                     {
                         Name = file.Name,
                         Created = file.CreationTimeUtc,
@@ -50,7 +54,7 @@ namespace BUTR.CrashReportServer.Services
                         DataCompressed = compressed.ToArray()
                     }, stoppingToken);
                 }
-                await _dbContext.SaveChangesAsync(stoppingToken);
+                await dbContext.SaveChangesAsync(stoppingToken);
                 
                 foreach (var file in files)
                     file.MoveTo(Path.Combine(path, "copied", file.Name));
