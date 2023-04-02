@@ -12,6 +12,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using DirectoryInfo = System.IO.DirectoryInfo;
+
 namespace BUTR.CrashReportServer.Services
 {
     public sealed class FileSystemMigrator : BackgroundService
@@ -34,8 +36,10 @@ namespace BUTR.CrashReportServer.Services
             
             var path = _storageOptions.Path ?? string.Empty;
             Directory.CreateDirectory(Path.Combine(path, "copied"));
+            Directory.CreateDirectory(Path.Combine(path, "copied2"));
             
             var fileChunks = new DirectoryInfo(path).EnumerateFiles("*.html", SearchOption.TopDirectoryOnly)
+                .Concat(new DirectoryInfo(Path.Combine(path, "copied")).EnumerateFiles("*.html", SearchOption.TopDirectoryOnly))
                 .Chunk(10)
                 .ToAsyncEnumerable()
                 .WithCancellation(stoppingToken);
@@ -57,7 +61,7 @@ namespace BUTR.CrashReportServer.Services
                 await dbContext.SaveChangesAsync(stoppingToken);
                 
                 foreach (var file in files)
-                    file.MoveTo(Path.Combine(path, "copied", file.Name));
+                    file.MoveTo(Path.Combine(path, "copied2", file.Name));
             }
         }
     }
