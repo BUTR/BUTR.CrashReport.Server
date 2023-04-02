@@ -4,7 +4,7 @@ WORKDIR /app
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src
 
-COPY ["src/BUTR.CrashReportServer/BUTR.CrashReportServer.csproj", "BUTR.CrashReportServer/"]
+COPY ["BUTR.CrashReportServer/BUTR.CrashReportServer.csproj", "BUTR.CrashReportServer/"]
 
 RUN dotnet restore "BUTR.CrashReportServer/BUTR.CrashReportServer.csproj"
 
