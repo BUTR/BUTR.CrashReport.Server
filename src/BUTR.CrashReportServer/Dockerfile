@@ -1,18 +1,27 @@
-FROM mcr.microsoft.com/dotnet/sdk:7.0-alpine AS build
-WORKDIR /build
-
-COPY ["src/BUTR.CrashReportServer/BUTR.CrashReportServer.csproj", "src/BUTR.CrashReportServer/"]
-RUN dotnet restore "src/BUTR.CrashReportServer/BUTR.CrashReportServer.csproj"
-
-COPY ["src/BUTR.CrashReportServer/", "src/BUTR.CrashReportServer/"]
-
-RUN dotnet publish "src/BUTR.CrashReportServer/BUTR.CrashReportServer.csproj" -c Release -o ./output -r alpine-x64 --self-contained true /p:PublishReadyToRun=true /p:PublishReadyToRunShowWarnings=true;
-
-
-FROM mcr.microsoft.com/dotnet/runtime-deps:7.0-alpine
+FROM mcr.microsoft.com/dotnet/aspnet:7.0 AS base
 WORKDIR /app
-COPY --from=build /build/output .
+
+FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
+WORKDIR /src
+
+COPY ["BUTR.CrashReportServer/BUTR.CrashReportServer.csproj", "BUTR.CrashReportServer/"]
+
+RUN dotnet restore "BUTR.CrashReportServer/BUTR.CrashReportServer.csproj"
+
+COPY . .
+
+WORKDIR "/src/BUTR.CrashReportServer"
+RUN dotnet build "BUTR.CrashReportServer.csproj" -c Release -o /app/build
+
+
+FROM build AS publish
+RUN dotnet publish "BUTR.CrashReportServer.csproj" -c Release -o /app/publish
+
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
 
 LABEL org.opencontainers.image.source="https://github.com/BUTR/BUTR.CrashReportServer"
-EXPOSE 80
-ENTRYPOINT ["./BUTR.CrashReportServer"]
+EXPOSE 80/tcp
+ENTRYPOINT ["dotnet", "BUTR.CrashReportServer.dll"]
