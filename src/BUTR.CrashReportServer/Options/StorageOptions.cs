@@ -1,7 +1,6 @@
-﻿namespace BUTR.CrashReportServer.Options
+﻿namespace BUTR.CrashReportServer.Options;
+
+public record StorageOptions
 {
-    public record StorageOptions
-    {
-        public string? Path { get; set; }
-    }
+    public string? Path { get; set; }
 }

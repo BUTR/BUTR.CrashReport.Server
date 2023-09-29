@@ -8,36 +8,35 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using System;
 using System.Security.Authentication;
 
-namespace BUTR.CrashReportServer
+namespace BUTR.CrashReportServer;
+
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
+public sealed class HttpsProtocolAttribute : Attribute, IAuthorizationFilter, IOrderedFilter
 {
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
-    public sealed class HttpsProtocolAttribute : Attribute, IAuthorizationFilter, IOrderedFilter
+    public int Order => int.MinValue + 50;
+
+    public SslProtocols Protocol { get; set; }
+
+    public void OnAuthorization(AuthorizationFilterContext filterContext)
     {
-        public int Order => int.MinValue + 50;
+        if (filterContext == null)
+            throw new ArgumentNullException(nameof(filterContext));
 
-        public SslProtocols Protocol { get; set; }
-
-        public void OnAuthorization(AuthorizationFilterContext filterContext)
+        if (filterContext.HttpContext.Features.Get<ITlsHandshakeFeature>() is not { } tlsHandshakeFeature)
         {
-            if (filterContext == null)
-                throw new ArgumentNullException(nameof(filterContext));
-
-            if (filterContext.HttpContext.Features.Get<ITlsHandshakeFeature>() is not { } tlsHandshakeFeature)
+            if (filterContext.HttpContext.Request.IsHttps)
             {
-                if (filterContext.HttpContext.Request.IsHttps)
-                {
-                    throw new InvalidOperationException("ITlsHandshakeFeature is not found when https is enabled");
-                }
-                return;
+                throw new InvalidOperationException("ITlsHandshakeFeature is not found when https is enabled");
             }
+            return;
+        }
 
-            if (tlsHandshakeFeature.Protocol < Protocol)
+        if (tlsHandshakeFeature.Protocol < Protocol)
+        {
+            filterContext.Result = new ObjectResult(new TLSError($"TLS minimally supported version: {Protocol}; Got version: {tlsHandshakeFeature.Protocol}"))
             {
-                filterContext.Result = new ObjectResult(new TLSError($"TLS minimally supported version: {Protocol}; Got version: {tlsHandshakeFeature.Protocol}"))
-                {
-                    StatusCode = StatusCodes.Status400BadRequest
-                };
-            }
+                StatusCode = StatusCodes.Status400BadRequest
+            };
         }
     }
 }

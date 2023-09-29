@@ -1,4 +1,3 @@
-namespace BUTR.CrashReportServer.Models
-{
-    public record TLSError(string Message);
-}
+namespace BUTR.CrashReportServer.Models;
+
+public record TLSError(string Message);

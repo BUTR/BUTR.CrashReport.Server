@@ -3,6 +3,7 @@ using System;
 using BUTR.CrashReportServer.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BUTR.CrashReportServer.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230929075117_FileEntity")]
+    partial class FileEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "7.0.4");
@@ -37,10 +40,8 @@ namespace BUTR.CrashReportServer.Migrations
             modelBuilder.Entity("BUTR.CrashReportServer.Models.Database.IdEntity", b =>
                 {
                     b.Property<string>("FileId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
-                        .HasColumnName("file_id")
-                        .HasDefaultValueSql("hex(randomblob(3))");
+                        .HasColumnName("file_id");
 
                     b.Property<Guid>("CrashReportId")
                         .HasColumnType("TEXT")

@@ -1,4 +1,3 @@
-﻿namespace BUTR.CrashReportServer.Models.Database
-{
-    public interface IEntity { }
-}
+﻿namespace BUTR.CrashReportServer.Models.Database;
+
+public interface IEntity { }

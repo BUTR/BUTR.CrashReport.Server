@@ -5,17 +5,17 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace BUTR.CrashReportServer.Contexts.Config;
 
-public class FileEntityConfiguration : BaseEntityConfiguration<FileEntity>
+public class JsonEntityConfiguration : BaseEntityConfiguration<JsonEntity>
 {
-    protected override void ConfigureModel(EntityTypeBuilder<FileEntity> builder)
+    protected override void ConfigureModel(EntityTypeBuilder<JsonEntity> builder)
     {
         builder.Property<string>(nameof(IdEntity.FileId)).HasColumnName("file_id");
-        builder.Property(p => p.DataCompressed).HasColumnName("data_compressed");
-        builder.ToTable("file_entity").HasKey(nameof(IdEntity.FileId)).HasName("file_entity_pkey");
+        builder.Property(p => p.CrashReportCompressed).HasColumnName("data_compressed");
+        builder.ToTable("json_entity").HasKey(nameof(IdEntity.FileId));
 
         builder.HasOne(x => x.Id)
             .WithOne()
-            .HasForeignKey<FileEntity>(nameof(IdEntity.FileId))
+            .HasForeignKey<JsonEntity>(nameof(IdEntity.FileId))
             .HasPrincipalKey<IdEntity>(x => x.FileId)
             .OnDelete(DeleteBehavior.Cascade);
 

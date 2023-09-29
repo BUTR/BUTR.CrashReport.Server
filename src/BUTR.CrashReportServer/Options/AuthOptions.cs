@@ -1,8 +1,7 @@
-﻿namespace BUTR.CrashReportServer.Options
+﻿namespace BUTR.CrashReportServer.Options;
+
+public record AuthOptions
 {
-    public record AuthOptions
-    {
-        public string? Username { get; set; }
-        public string? Password { get; set; }
-    }
+    public string? Username { get; set; }
+    public string? Password { get; set; }
 }
