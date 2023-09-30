@@ -157,7 +157,6 @@ public class ReportController : ControllerBase
             .Where(x => filenamesWithExtension.Contains(x.FileId))
             .Select(x => new { x.FileId, x.Created })
             .AsAsyncEnumerable()
-            .Select(x => new FilenameDate(x.FileId, x.Created.ToUniversalTime().ToString("O")))
-            .WithCancellation(ct));
+            .Select(x => new FilenameDate(x.FileId, x.Created.ToUniversalTime().ToString("O"))));
     }
 }

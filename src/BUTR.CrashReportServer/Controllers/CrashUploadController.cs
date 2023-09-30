@@ -70,13 +70,13 @@ public class CrashUploadController : ControllerBase
     public async Task<IActionResult> CrashUploadAsync(CancellationToken ct)
     {
         if (Request.ContentLength is not { } contentLength || contentLength < _options.MinContentLength || contentLength > _options.MaxContentLength)
-            return StatusCode((int) HttpStatusCode.InternalServerError);
+            return StatusCode(StatusCodes.Status500InternalServerError);
 
         Request.EnableBuffering();
 
         var (valid, id, version, crashReportModel) = await CrashReportRawParser.TryReadCrashReportDataAsync(PipeReader.Create(Request.Body));
         if (!valid)
-            return StatusCode((int) HttpStatusCode.InternalServerError);
+            return StatusCode(StatusCodes.Status500InternalServerError);
 
         if (await _dbContext.Set<IdEntity>().FirstOrDefaultAsync(x => x.CrashReportId == id, ct) is { } idEntity)
             return Ok($"{_options.BaseUri}/{idEntity.FileId}");
@@ -104,7 +104,7 @@ public class CrashUploadController : ControllerBase
     public async Task<IActionResult> CrashUploadAsync([FromBody] CrashReportUploadBody body, CancellationToken ct)
     {
         if (Request.ContentLength is not { } contentLength || contentLength < _options.MinContentLength || contentLength > _options.MaxContentLength)
-            return StatusCode((int) HttpStatusCode.InternalServerError);
+            return StatusCode(StatusCodes.Status500InternalServerError);
 
         if (await _dbContext.Set<IdEntity>().FirstOrDefaultAsync(x => x.CrashReportId == body.CrashReport.Id, ct) is { } idEntity)
             return Ok($"{_options.BaseUri}/{idEntity.FileId}");
