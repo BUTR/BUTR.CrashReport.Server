@@ -18,7 +18,7 @@ public static class HostExtensions
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<TDbContext>>();
         try
         {
-            var  migrations = (await dbContext.Database.GetPendingMigrationsAsync()).Count();
+            var migrations = (await dbContext.Database.GetPendingMigrationsAsync()).Count();
             await dbContext.Database.MigrateAsync();
             if (migrations > 0) await dbContext.Database.ExecuteSqlRawAsync("VACUUM;");
         }
