@@ -1,4 +1,4 @@
-namespace BUTR.CrashReportServer.Models.Database;
+﻿namespace BUTR.CrashReportServer.Models.Database;
 
 public sealed record JsonEntity : IEntity
 {
