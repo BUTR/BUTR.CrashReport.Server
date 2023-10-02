@@ -1,5 +1,7 @@
 ﻿using BUTR.CrashReport.Models;
 
+using SQLitePCL;
+
 using System;
 using System.Buffers;
 using System.Buffers.Text;
@@ -15,17 +17,18 @@ public static class CrashReportRawParser
 {
     private static readonly byte[] Newline = "\n"u8.ToArray();
     private static readonly byte[] ReportMarkerStart = "<report id='"u8.ToArray();
-    private static readonly byte[] ReportIdMarkerEnd = "' "u8.ToArray();
+    private static readonly byte[] ReportIdMarkerEnd = "'"u8.ToArray();
     private static readonly byte[] ReportIdNoVersionMarkerEnd = "'>"u8.ToArray();
     private static readonly byte[] ReportVersionMarkerStart = "' version='"u8.ToArray();
-    private static readonly byte[] ReportVersionMarkerEnd = "' />"u8.ToArray();
+    private static readonly byte[] ReportVersionMarkerEnd = "'>"u8.ToArray();
+    private static readonly byte[] ReportVersionMarkerEnd2 = "' >"u8.ToArray();
     private static readonly byte[] JsonModelMarkerStart = "<div id='json-model-data' class='headers-container'>"u8.ToArray();
     private static readonly byte[] JsonModelMarkerEnd = "</div>"u8.ToArray();
 
     public static async Task<(bool, Guid, byte, CrashReportModel?)> TryReadCrashReportDataAsync(PipeReader reader)
     {
         var crashRreportId = Guid.Empty;
-        var crashRreportVersion = (byte) 0;
+        var crashReportVersion = (byte) 0;
         var crashReportModel = default(CrashReportModel);
 
         while (true)
@@ -33,7 +36,7 @@ public static class CrashReportRawParser
             var result = await reader.ReadAsync();
             var buffer = result.Buffer;
 
-            while (!result.IsCompleted && !TryReadCrashReportData(ref buffer, out crashRreportId, out crashRreportVersion))
+            while (!result.IsCompleted && !TryReadCrashReportData(ref buffer, out crashRreportId, out crashReportVersion))
             {
                 reader.AdvanceTo(buffer.Start, buffer.End);
             }
@@ -55,9 +58,10 @@ public static class CrashReportRawParser
         }
 
         var isValid = crashRreportId != Guid.Empty &&
-                      ((crashRreportVersion > 12 && crashReportModel is not null) || (crashRreportVersion <= 12 && crashReportModel is null));
+                      crashReportVersion > 0 &&
+                      ((crashReportVersion > 12 && crashReportModel is not null) || (crashReportVersion <= 12 && crashReportModel is null));
 
-        return (isValid, crashRreportId, crashRreportVersion, crashReportModel);
+        return (isValid, crashRreportId, crashReportVersion, crashReportModel);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -72,6 +76,24 @@ public static class CrashReportRawParser
         buffer = buffer.Slice(reader.Position);
 
         if (line.IndexOf(ReportMarkerStart) is not (var idxIdStart and not -1)) return false;
+        var line2 = line.utf8_span_to_string();
+
+        if (line.Slice(idxIdStart + ReportMarkerStart.Length).IndexOf(ReportIdMarkerEnd) is not (var idxIdEnd and not -1)) return false;
+
+        if (!Utf8Parser.TryParse(line.Slice(idxIdStart + ReportMarkerStart.Length, idxIdEnd), out crashReportId, out _)) return false;
+
+        if (line.IndexOf(ReportVersionMarkerStart) is var idxVersionStart and not -1)
+        {
+            var idxEnd = -1;
+            if (line.Slice(idxVersionStart + ReportVersionMarkerStart.Length).IndexOf(ReportVersionMarkerEnd) is var idxVersionEnd and not -1) idxEnd = idxVersionEnd;
+            if (line.Slice(idxVersionStart + ReportVersionMarkerStart.Length).IndexOf(ReportVersionMarkerEnd2) is var idxVersionEnd2 and not -1) idxEnd = idxVersionEnd2;
+            if (idxEnd == -1) return false;
+
+            if (!Utf8Parser.TryParse(line.Slice(idxVersionStart + ReportVersionMarkerStart.Length, idxEnd), out version, out _)) return false;
+
+            return true;
+        }
+
         if (line.Slice(idxIdStart + ReportMarkerStart.Length).IndexOf(ReportIdNoVersionMarkerEnd) is var idxNoVersionStart and not -1)
         {
             if (!Utf8Parser.TryParse(line.Slice(idxIdStart + ReportMarkerStart.Length, idxNoVersionStart), out crashReportId, out _)) return false;
@@ -80,16 +102,7 @@ public static class CrashReportRawParser
             return true;
         }
 
-        if (line.Slice(idxIdStart + ReportMarkerStart.Length).IndexOf(ReportIdMarkerEnd) is not (var idxIdEnd and not -1)) return false;
-
-        if (!Utf8Parser.TryParse(line.Slice(idxIdStart + ReportMarkerStart.Length, idxIdEnd), out crashReportId, out _)) return false;
-
-        if (line.IndexOf(ReportVersionMarkerStart) is not (var idxVersionStart and not -1)) return false;
-        if (line.Slice(idxVersionStart + ReportVersionMarkerStart.Length).IndexOf(ReportVersionMarkerEnd) is not (var idxVersionEnd and not -1)) return false;
-
-        if (!Utf8Parser.TryParse(line.Slice(idxVersionStart + ReportVersionMarkerStart.Length, idxVersionEnd), out version, out _)) return false;
-
-        return true;
+        return false;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

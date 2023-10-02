@@ -6,5 +6,6 @@ public sealed record IdEntity : IEntity
 {
     public required string FileId { get; set; }
     public required Guid CrashReportId { get; set; }
+    public required byte Version { get; set; }
     public required DateTimeOffset Created { get; set; }
 }

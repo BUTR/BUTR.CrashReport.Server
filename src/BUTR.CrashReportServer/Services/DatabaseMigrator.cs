@@ -55,7 +55,7 @@ public sealed class DatabaseMigrator : BackgroundService
         {
             var dbContext = await dbContextPool.GetAsync(ct2);
 
-            var wrong = dbContext.Set<FileEntity>().AsNoTracking().Where(x => x.Id.CrashReportId == Guid.Empty).Take(1000);
+            var wrong = dbContext.Set<FileEntity>().AsNoTracking().Where(x => x.Id.Version == 0).Take(1000);
             while (true)
             {
                 var entities = wrong.ToArray();
@@ -74,7 +74,7 @@ public sealed class DatabaseMigrator : BackgroundService
                     {
                         sb.AppendLine($"""
                                        UPDATE id_entity
-                                       SET crash_report_id = '{id}'
+                                       SET version = '{version}'
                                        WHERE file_id = '{entity.Id.FileId}';
                                        """);
                     }

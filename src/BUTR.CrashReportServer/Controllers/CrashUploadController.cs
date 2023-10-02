@@ -87,7 +87,7 @@ public class CrashUploadController : ControllerBase
             Converters = { new JsonStringEnumConverter() }
         }), ct);
 
-        idEntity = new IdEntity { FileId = default!, CrashReportId = id, Created = DateTimeOffset.UtcNow, };
+        idEntity = new IdEntity { FileId = default!, CrashReportId = id, Version = version, Created = DateTimeOffset.UtcNow, };
         await _dbContext.Set<IdEntity>().AddAsync(idEntity, ct);
         await _dbContext.Set<FileEntity>().AddAsync(new FileEntity { Id = idEntity, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
         if (version >= 13) await _dbContext.Set<JsonEntity>().AddAsync(new JsonEntity { Id = idEntity, CrashReportCompressed = compressedJsonStream.ToArray(), }, ct);
@@ -118,7 +118,7 @@ public class CrashUploadController : ControllerBase
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(html.AsStream(), ct);
         await using var compressedJsonStream = await _gZipCompressor.CompressAsync(json.AsStream(), ct);
 
-        idEntity = new IdEntity { FileId = default!, CrashReportId = body.CrashReport.Id, Created = DateTimeOffset.UtcNow, };
+        idEntity = new IdEntity { FileId = default!, CrashReportId = body.CrashReport.Id, Version = body.CrashReport.Version, Created = DateTimeOffset.UtcNow, };
         await _dbContext.Set<IdEntity>().AddAsync(idEntity, ct);
         await _dbContext.Set<JsonEntity>().AddAsync(new JsonEntity { Id = idEntity, CrashReportCompressed = compressedJsonStream.ToArray(), }, ct);
         await _dbContext.Set<FileEntity>().AddAsync(new FileEntity { Id = idEntity, DataCompressed = compressedHtmlStream.ToArray(), }, ct);

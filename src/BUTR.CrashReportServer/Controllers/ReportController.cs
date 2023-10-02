@@ -144,19 +144,19 @@ public class ReportController : ControllerBase
     public ActionResult<IAsyncEnumerable<string>> GetAllFilenames() => Ok(_dbContext.Set<IdEntity>().Select(x => x.FileId));
 
     [Authorize]
-    [HttpPost("GetFilenameDates")]
-    [ProducesResponseType(typeof(FilenameDate[]), StatusCodes.Status200OK, "application/json")]
+    [HttpPost("GetMetadata")]
+    [ProducesResponseType(typeof(FileMetadata[]), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
-    public ActionResult<IEnumerable<FilenameDate>> GetFilenameDates(ICollection<string> filenames, CancellationToken ct)
+    public ActionResult<IEnumerable<FileMetadata>> GetFilenameDates(ICollection<string> filenames, CancellationToken ct)
     {
         var filenamesWithExtension = filenames.Select(Path.GetFileNameWithoutExtension).ToImmutableArray();
 
         return Ok(_dbContext.Set<IdEntity>()
             .Where(x => filenamesWithExtension.Contains(x.FileId))
-            .Select(x => new { x.FileId, x.Created })
+            .Select(x => new { x.FileId, x.Version, x.Created })
             .AsAsyncEnumerable()
-            .Select(x => new FilenameDate(x.FileId, x.Created.ToUniversalTime().ToString("O"))));
+            .Select(x => new FileMetadata(x.FileId, x.Version, x.Created.ToUniversalTime())));
     }
 }
