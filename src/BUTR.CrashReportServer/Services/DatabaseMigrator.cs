@@ -69,7 +69,16 @@ public sealed class DatabaseMigrator : BackgroundService
                     decompressed.Seek(0, SeekOrigin.Begin);
                     decompressed.Seek(0, SeekOrigin.Begin);
 
-                    var (valid, id, version, json) = await CrashReportRawParser.TryReadCrashReportDataAsync(PipeReader.Create(decompressed));
+                    var valid = false;
+                    var version = 0;
+                    try
+                    {
+                        var (valid2, id, version2, json) = await CrashReportRawParser.TryReadCrashReportDataAsync(PipeReader.Create(decompressed));
+                        valid = valid2;
+                        version = version2;
+                    }
+                    catch (Exception) { }
+
                     if (valid)
                     {
                         sb.AppendLine($"""
@@ -84,6 +93,8 @@ public sealed class DatabaseMigrator : BackgroundService
                                        DELETE FROM id_entity
                                        WHERE file_id = '{entity.Id.FileId}';
                                        DELETE FROM file_entity
+                                       WHERE file_id = '{entity.Id.FileId}';
+                                       DELETE FROM json_entity
                                        WHERE file_id = '{entity.Id.FileId}';
                                        """);
                     }
