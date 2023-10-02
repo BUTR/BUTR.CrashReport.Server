@@ -22,6 +22,8 @@ public static class CrashReportRawParser
     private static readonly byte[] ReportVersionMarkerStart = "' version='"u8.ToArray();
     private static readonly byte[] ReportVersionMarkerEnd = "'>"u8.ToArray();
     private static readonly byte[] ReportVersionMarkerEnd2 = "' >"u8.ToArray();
+    private static readonly byte[] ReportVersionMarkerEnd3 = "'/>"u8.ToArray();
+    private static readonly byte[] ReportVersionMarkerEnd4 = "' />"u8.ToArray();
     private static readonly byte[] JsonModelMarkerStart = "<div id='json-model-data' class='headers-container'>"u8.ToArray();
     private static readonly byte[] JsonModelMarkerEnd = "</div>"u8.ToArray();
 
@@ -87,6 +89,8 @@ public static class CrashReportRawParser
             var idxEnd = -1;
             if (line.Slice(idxVersionStart + ReportVersionMarkerStart.Length).IndexOf(ReportVersionMarkerEnd) is var idxVersionEnd and not -1) idxEnd = idxVersionEnd;
             if (line.Slice(idxVersionStart + ReportVersionMarkerStart.Length).IndexOf(ReportVersionMarkerEnd2) is var idxVersionEnd2 and not -1) idxEnd = idxVersionEnd2;
+            if (line.Slice(idxVersionStart + ReportVersionMarkerStart.Length).IndexOf(ReportVersionMarkerEnd3) is var idxVersionEnd3 and not -1) idxEnd = idxVersionEnd3;
+            if (line.Slice(idxVersionStart + ReportVersionMarkerStart.Length).IndexOf(ReportVersionMarkerEnd4) is var idxVersionEnd4 and not -1) idxEnd = idxVersionEnd4;
             if (idxEnd == -1) return false;
 
             if (!Utf8Parser.TryParse(line.Slice(idxVersionStart + ReportVersionMarkerStart.Length, idxEnd), out version, out _)) return false;

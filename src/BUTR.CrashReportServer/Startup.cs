@@ -103,6 +103,12 @@ public class Startup
             opts.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         });
+        services.Configure<JsonSerializerOptions>(opts =>
+        {
+            opts.PropertyNameCaseInsensitive = true;
+            opts.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            opts.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+        });
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

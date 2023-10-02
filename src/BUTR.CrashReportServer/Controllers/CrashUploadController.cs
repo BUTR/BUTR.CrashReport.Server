@@ -17,7 +17,6 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO.Pipelines;
-using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -33,12 +32,14 @@ public class CrashUploadController : ControllerBase
 
     private readonly ILogger _logger;
     private readonly CrashUploadOptions _options;
+    private readonly JsonSerializerOptions _jsonSerializerOptions;
     private readonly AppDbContext _dbContext;
     private readonly GZipCompressor _gZipCompressor;
 
-    public CrashUploadController(ILogger<CrashUploadController> logger, IOptionsSnapshot<CrashUploadOptions> options, AppDbContext dbContext, GZipCompressor gZipCompressor)
+    public CrashUploadController(ILogger<CrashUploadController> logger, IOptionsSnapshot<CrashUploadOptions> options, IOptionsSnapshot<JsonSerializerOptions> jsonSerializerOptions, AppDbContext dbContext, GZipCompressor gZipCompressor)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _jsonSerializerOptions = jsonSerializerOptions.Value ?? throw new ArgumentNullException(nameof(jsonSerializerOptions));
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
@@ -62,16 +63,8 @@ public class CrashUploadController : ControllerBase
     }
     */
 
-    [AllowAnonymous]
-    [HttpPost("crash-upload.py")]
-    [Consumes("text/html")]
-    [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "text/plain")]
-    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-    public async Task<IActionResult> CrashUploadAsync(CancellationToken ct)
+    private async Task<IActionResult> UploadHtmlAsync(CancellationToken ct)
     {
-        if (Request.ContentLength is not { } contentLength || contentLength < _options.MinContentLength || contentLength > _options.MaxContentLength)
-            return StatusCode(StatusCodes.Status500InternalServerError);
-
         Request.EnableBuffering();
 
         var (valid, id, version, crashReportModel) = await CrashReportRawParser.TryReadCrashReportDataAsync(PipeReader.Create(Request.Body));
@@ -96,34 +89,49 @@ public class CrashUploadController : ControllerBase
         return Ok($"{_options.BaseUri}/{idEntity.FileId}");
     }
 
-    [AllowAnonymous]
-    [HttpPost("crashupload")]
-    [Consumes("application/json")]
-    [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "text/plain")]
-    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-    public async Task<IActionResult> CrashUploadAsync([FromBody] CrashReportUploadBody body, CancellationToken ct)
+    private async Task<IActionResult> UploadJsonAsync(CancellationToken ct)
     {
-        if (Request.ContentLength is not { } contentLength || contentLength < _options.MinContentLength || contentLength > _options.MaxContentLength)
+        if (await HttpContext.Request.ReadFromJsonAsync<CrashReportUploadBody>(_jsonSerializerOptions, ct) is not { CrashReport: { } crashReport, LogSources: { } logSources })
             return StatusCode(StatusCodes.Status500InternalServerError);
 
-        if (await _dbContext.Set<IdEntity>().FirstOrDefaultAsync(x => x.CrashReportId == body.CrashReport.Id, ct) is { } idEntity)
+        if (await _dbContext.Set<IdEntity>().FirstOrDefaultAsync(x => x.CrashReportId == crashReport.Id, ct) is { } idEntity)
             return Ok($"{_options.BaseUri}/{idEntity.FileId}");
 
-        var json = JsonSerializer.Serialize(body.CrashReport, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        var json = JsonSerializer.Serialize(crashReport, new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             Converters = { new JsonStringEnumConverter() }
         });
-        var html = CrashReportHtmlRenderer.AddData(CrashReportHtmlRenderer.Build(body.CrashReport, body.LogSources), json);
+        var html = CrashReportHtmlRenderer.AddData(CrashReportHtmlRenderer.Build(crashReport, logSources), json);
 
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(html.AsStream(), ct);
         await using var compressedJsonStream = await _gZipCompressor.CompressAsync(json.AsStream(), ct);
 
-        idEntity = new IdEntity { FileId = default!, CrashReportId = body.CrashReport.Id, Version = body.CrashReport.Version, Created = DateTimeOffset.UtcNow, };
+        idEntity = new IdEntity { FileId = default!, CrashReportId = crashReport.Id, Version = crashReport.Version, Created = DateTimeOffset.UtcNow, };
         await _dbContext.Set<IdEntity>().AddAsync(idEntity, ct);
         await _dbContext.Set<JsonEntity>().AddAsync(new JsonEntity { Id = idEntity, CrashReportCompressed = compressedJsonStream.ToArray(), }, ct);
         await _dbContext.Set<FileEntity>().AddAsync(new FileEntity { Id = idEntity, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
         await _dbContext.SaveChangesAsync(ct);
 
         return Ok($"{_options.BaseUri}/{idEntity.FileId}");
+    }
+
+    [AllowAnonymous]
+    [HttpPost("crash-upload.py")]
+    [Consumes(typeof(CrashReportUploadBody), "application/json", "text/html")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "text/plain")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+    public Task<IActionResult> CrashUploadAsync(CancellationToken ct)
+    {
+        if (Request.ContentLength is not { } contentLength || contentLength < _options.MinContentLength || contentLength > _options.MaxContentLength)
+            return Task.FromResult<IActionResult>(StatusCode(StatusCodes.Status500InternalServerError));
+
+        switch (Request.ContentType)
+        {
+            case "application/json":
+                return UploadJsonAsync(ct);
+            case "text/html":
+            default:
+                return UploadHtmlAsync(ct);
+        }
     }
 }
