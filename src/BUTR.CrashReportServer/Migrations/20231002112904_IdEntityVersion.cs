@@ -15,7 +15,7 @@ namespace BUTR.CrashReportServer.Migrations
                 table: "id_entity",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: (byte)0);
+                defaultValue: (byte) 0);
         }
 
         /// <inheritdoc />
