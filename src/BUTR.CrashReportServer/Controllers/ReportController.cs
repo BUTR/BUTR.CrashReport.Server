@@ -159,4 +159,19 @@ public class ReportController : ControllerBase
             .AsAsyncEnumerable()
             .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
     }
+
+    [Authorize]
+    [HttpGet("GetNewCrashReports")]
+    [ProducesResponseType(typeof(FileMetadata[]), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+    [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
+    [HttpsProtocol(Protocol = SslProtocols.Tls13)]
+    public ActionResult<IEnumerable<FileMetadata>> GetNewCrashReportsDates([FromQuery] DateTime date, CancellationToken ct)
+    {
+        return Ok(_dbContext.Set<IdEntity>()
+            .Where(x => x.Created >= date)
+            .Select(x => new { x.FileId, x.CrashReportId, x.Version, x.Created })
+            .AsAsyncEnumerable()
+            .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
+    }
 }
