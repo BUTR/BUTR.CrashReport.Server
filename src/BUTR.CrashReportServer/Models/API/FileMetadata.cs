@@ -2,4 +2,4 @@
 
 namespace BUTR.CrashReportServer.Models.API;
 
-public sealed record FileMetadata(string File, byte Version, DateTimeOffset Date);
+public sealed record FileMetadata(string File, Guid Id, byte Version, DateTimeOffset Date);

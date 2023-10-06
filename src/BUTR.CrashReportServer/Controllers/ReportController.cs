@@ -155,8 +155,8 @@ public class ReportController : ControllerBase
 
         return Ok(_dbContext.Set<IdEntity>()
             .Where(x => filenamesWithExtension.Contains(x.FileId))
-            .Select(x => new { x.FileId, x.Version, x.Created })
+            .Select(x => new { x.FileId, x.CrashReportId, x.Version, x.Created })
             .AsAsyncEnumerable()
-            .Select(x => new FileMetadata(x.FileId, x.Version, x.Created.ToUniversalTime())));
+            .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
     }
 }
