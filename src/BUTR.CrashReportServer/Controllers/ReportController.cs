@@ -160,8 +160,6 @@ public class ReportController : ControllerBase
 
         return Ok(_dbContext.Set<IdEntity>()
             .Where(x => filenamesWithExtension.Contains(x.FileId))
-            .Select(x => new { x.FileId, x.CrashReportId, x.Version, x.Created })
-            .AsAsyncEnumerable()
             .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
     }
 
@@ -173,15 +171,12 @@ public class ReportController : ControllerBase
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
     public ActionResult<IEnumerable<FileMetadata>> GetNewCrashReportsDates([FromBody] GetNewCrashReportsBody body, CancellationToken ct)
     {
-        var universal = body.DateTime.ToUniversalTime();
-        var diff = DateTime.UtcNow - universal;
+        var diff = DateTime.UtcNow - body.DateTime;
         if (diff.Ticks < 0 || diff > TimeSpan.FromDays(30))
             return BadRequest();
 
         return Ok(_dbContext.Set<IdEntity>()
-            .Where(x => x.Created >= universal)
-            .Select(x => new { x.FileId, x.CrashReportId, x.Version, x.Created })
-            .AsAsyncEnumerable()
+            .Where(x => x.Created > body.DateTime)
             .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
     }
 }

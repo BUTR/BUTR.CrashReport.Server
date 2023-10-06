@@ -46,7 +46,7 @@ namespace BUTR.CrashReportServer.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("crash_report_id");
 
-                    b.Property<DateTimeOffset>("Created")
+                    b.Property<DateTime>("Created")
                         .HasColumnType("TEXT")
                         .HasColumnName("created");
 
