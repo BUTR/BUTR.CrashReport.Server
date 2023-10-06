@@ -27,6 +27,11 @@ namespace BUTR.CrashReportServer.Controllers;
 [Route("/report")]
 public class ReportController : ControllerBase
 {
+    public sealed record GetNewCrashReportsBody
+    {
+        public required DateTime DateTime { get; init; }
+    }
+
     private readonly ILogger _logger;
     private readonly AppDbContext _dbContext;
     private readonly GZipCompressor _gZipCompressor;
@@ -161,15 +166,19 @@ public class ReportController : ControllerBase
     }
 
     [Authorize]
-    [HttpGet("GetNewCrashReports")]
+    [HttpPost("GetNewCrashReports")]
     [ProducesResponseType(typeof(FileMetadata[]), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
-    public ActionResult<IEnumerable<FileMetadata>> GetNewCrashReportsDates([FromQuery] DateTime date, CancellationToken ct)
+    public ActionResult<IEnumerable<FileMetadata>> GetNewCrashReportsDates([FromBody] GetNewCrashReportsBody body, CancellationToken ct)
     {
+        var diff = DateTime.UtcNow - body.DateTime;
+        if (diff.Ticks < 0 || DateTime.UtcNow - body.DateTime > TimeSpan.FromDays(7))
+            return BadRequest();
+
         return Ok(_dbContext.Set<IdEntity>()
-            .Where(x => x.Created >= date)
+            .Where(x => x.Created >= body.DateTime)
             .Select(x => new { x.FileId, x.CrashReportId, x.Version, x.Created })
             .AsAsyncEnumerable()
             .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
