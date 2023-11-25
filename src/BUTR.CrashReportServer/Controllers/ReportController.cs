@@ -175,11 +175,9 @@ public class ReportController : ControllerBase
         var diff = DateTime.UtcNow - body.DateTime;
         if (diff.Ticks < 0 || diff > TimeSpan.FromDays(30))
             return BadRequest();
-
-        var data = _dbContext.Set<IdEntity>()
+                
+        return Ok(_dbContext.Set<IdEntity>()
             .Where(x => x.Created.Ticks > body.DateTime.Ticks)
-            .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime()))
-            .ToArray();
-        return Ok(data);
+            .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
     }
 }
