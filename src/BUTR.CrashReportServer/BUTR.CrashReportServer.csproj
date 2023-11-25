@@ -15,10 +15,7 @@
   <ItemGroup>
     <PackageReference Include="AspNetCore.Authentication.Basic" Version="7.0.0" />
     <PackageReference Include="BUTR.CrashReport" Version="13.0.0.32" />
-    <PackageReference Include="BUTR.CrashReport.Bannerlord.Source" Version="13.0.0.32">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="BUTR.CrashReport.Bannerlord.Source" Version="13.0.0.32"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
     <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="2.3.2" />
@@ -36,7 +33,7 @@
   
   <Target Condition="$(DOTNET_RUNNING_IN_CONTAINER) != 'true'" Name="GenerateOpenApi" AfterTargets="PostBuildEvent">
     <Exec Command="dotnet new tool-manifest --force" />
-    <Exec Command="dotnet tool install --local Swashbuckle.AspNetCore.Cli --version 6.1.4" />
+    <Exec Command="dotnet tool install --local Swashbuckle.AspNetCore.Cli --version 6.5.0" />
     <Exec Command="dotnet swagger tofile --output ../swagger.json $(OutputPath)$(AssemblyName).dll v1" />
   </Target>
 
