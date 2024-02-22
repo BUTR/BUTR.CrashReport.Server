@@ -45,7 +45,7 @@ public class Startup
         services.AddSingleton<HexGenerator>();
         services.AddSingleton<RecyclableMemoryStreamManager>();
         services.AddSingleton<GZipCompressor>();
-        services.AddHostedService<DatabaseMigrator>();
+        //services.AddHostedService<DatabaseMigrator>();
 
         services.AddDbContextFactory<AppDbContext>(x => x.UseSqlite(_configuration.GetConnectionString("Main")));
 
