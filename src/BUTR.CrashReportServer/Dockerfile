@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:8.0-jammy AS restore
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-jammy AS restore
 ARG TARGETARCH
 WORKDIR /build
 
@@ -9,9 +9,9 @@ RUN dotnet restore "BUTR.CrashReportServer/BUTR.CrashReportServer.csproj" -a $TA
 
 COPY ["src/BUTR.CrashReportServer/", "src/BUTR.CrashReportServer/"]
 
-COPY [".git/HEAD", ".git/HEAD"]
-COPY [".git/config", ".git/config"]
-COPY [".git/refs/heads/", ".git/refs/heads/"]
+#COPY [".git/HEAD", ".git/HEAD"]
+#COPY [".git/config", ".git/config"]
+#COPY [".git/refs/heads/", ".git/refs/heads/"]
 
 
 FROM restore AS publish
