@@ -1,27 +1,30 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-WORKDIR /app
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:8.0-jammy AS restore
+ARG TARGETARCH
+WORKDIR /build
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /src
+COPY ["src/BUTR.CrashReportServer/BUTR.CrashReportServer.csproj", "src/BUTR.CrashReportServer/"]
+COPY ["src/nuget.config", "src/"]
 
-COPY ["BUTR.CrashReportServer/BUTR.CrashReportServer.csproj", "BUTR.CrashReportServer/"]
+RUN dotnet restore "BUTR.CrashReportServer/BUTR.CrashReportServer.csproj" -a $TARGETARCH;
 
-RUN dotnet restore "BUTR.CrashReportServer/BUTR.CrashReportServer.csproj"
+COPY ["src/BUTR.CrashReportServer/", "src/BUTR.CrashReportServer/"]
 
-COPY . .
-
-WORKDIR "/src/BUTR.CrashReportServer"
-RUN dotnet build "BUTR.CrashReportServer.csproj" -c Release -o /app/build
-
-
-FROM build AS publish
-RUN dotnet publish "BUTR.CrashReportServer.csproj" -c Release -o /app/publish
+COPY [".git/HEAD", ".git/HEAD"]
+COPY [".git/config", ".git/config"]
+COPY [".git/refs/heads/", ".git/refs/heads/"]
 
 
-FROM base AS final
+FROM restore AS publish
+ARG TARGETARCH
+WORKDIR /build
+
+RUN dotnet publish "BUTR.CrashReportServer.csproj" -c Release -a $TARGETARCH -o /app/publish;
+
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-jammy AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
 LABEL org.opencontainers.image.source="https://github.com/BUTR/BUTR.CrashReportServer"
-EXPOSE 80/tcp
+EXPOSE 8080/tcp
 ENTRYPOINT ["dotnet", "BUTR.CrashReportServer.dll"]

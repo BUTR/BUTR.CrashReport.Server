@@ -24,7 +24,7 @@
     <PackageReference Include="Harmony.Extensions" Version="*" IncludeAssets="none" />
     <PackageReference Include="Bannerlord.BUTR.Shared" Version="*" IncludeAssets="none" />
     <PackageReference Include="BUTR.CrashReport.Models" Version="13.0.0.48" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0-preview.1.24081.2" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.2" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.2" />
     <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.6" />
