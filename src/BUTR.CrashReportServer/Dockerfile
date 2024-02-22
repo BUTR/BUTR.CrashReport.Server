@@ -18,7 +18,7 @@ FROM restore AS publish
 ARG TARGETARCH
 WORKDIR /build
 
-RUN dotnet publish "BUTR.CrashReportServer.csproj" -c Release -a $TARGETARCH -o /app/publish;
+RUN dotnet publish "src/BUTR.CrashReportServer/BUTR.CrashReportServer.csproj" -c Release -a $TARGETARCH -o /app/publish;
 
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-jammy AS final
