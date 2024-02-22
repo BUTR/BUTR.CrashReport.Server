@@ -1,4 +1,5 @@
-﻿using BUTR.CrashReportServer.Contexts;
+﻿/*
+using BUTR.CrashReportServer.Contexts;
 using BUTR.CrashReportServer.Models.Database;
 using BUTR.CrashReportServer.Utils;
 
@@ -106,3 +107,4 @@ public sealed class DatabaseMigrator : BackgroundService
         });
     }
 }
+*/
