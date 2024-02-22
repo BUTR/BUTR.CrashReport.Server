@@ -5,7 +5,7 @@ WORKDIR /build
 COPY ["src/BUTR.CrashReportServer/BUTR.CrashReportServer.csproj", "src/BUTR.CrashReportServer/"]
 COPY ["src/nuget.config", "src/"]
 
-RUN dotnet restore "BUTR.CrashReportServer/BUTR.CrashReportServer.csproj" -a $TARGETARCH;
+RUN dotnet restore "src/BUTR.CrashReportServer/BUTR.CrashReportServer.csproj" -a $TARGETARCH;
 
 COPY ["src/BUTR.CrashReportServer/", "src/BUTR.CrashReportServer/"]
 
