@@ -16,6 +16,7 @@ using Microsoft.Extensions.Options;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.IO.Pipelines;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -36,8 +37,20 @@ public class CrashUploadController : ControllerBase
     private readonly AppDbContext _dbContext;
     private readonly GZipCompressor _gZipCompressor;
 
-    public CrashUploadController(ILogger<CrashUploadController> logger, IOptionsSnapshot<CrashUploadOptions> options, IOptionsSnapshot<JsonSerializerOptions> jsonSerializerOptions, AppDbContext dbContext, GZipCompressor gZipCompressor)
+    private readonly Counter<int> _reportVersion;
+
+    public CrashUploadController(
+        ILogger<CrashUploadController> logger,
+        IOptionsSnapshot<CrashUploadOptions> options,
+        IOptionsSnapshot<JsonSerializerOptions> jsonSerializerOptions,
+        AppDbContext dbContext,
+        GZipCompressor gZipCompressor,
+        IMeterFactory meterFactory)
     {
+        var meter = meterFactory.Create("BUTR.CrashReportServer.Controllers.CrashUploadController", "1.0.0");
+
+        _reportVersion = meter.CreateCounter<int>("report-version", unit: "Count");
+        
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _jsonSerializerOptions = jsonSerializerOptions.Value ?? throw new ArgumentNullException(nameof(jsonSerializerOptions));
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
@@ -86,6 +99,8 @@ public class CrashUploadController : ControllerBase
         if (version >= 13) await _dbContext.Set<JsonEntity>().AddAsync(new JsonEntity { Id = idEntity, CrashReportCompressed = compressedJsonStream.ToArray(), }, ct);
         await _dbContext.SaveChangesAsync(ct);
 
+        _reportVersion.Add(1, new[] {new KeyValuePair<string, object?>("Version", version)});
+
         return Ok($"{_options.BaseUri}/{idEntity.FileId}");
     }
 
@@ -112,6 +127,8 @@ public class CrashUploadController : ControllerBase
         await _dbContext.Set<FileEntity>().AddAsync(new FileEntity { Id = idEntity, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
         await _dbContext.SaveChangesAsync(ct);
 
+        _reportVersion.Add(1, new[] {new KeyValuePair<string, object?>("Version", crashReport.Version)});
+        
         return Ok($"{_options.BaseUri}/{idEntity.FileId}");
     }
 

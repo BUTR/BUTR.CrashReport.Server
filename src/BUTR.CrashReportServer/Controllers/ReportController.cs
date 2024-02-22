@@ -52,7 +52,7 @@ public class ReportController : ControllerBase
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool ValidateFileName(string? fileName) => fileName?.Length is 6 or 8 or 10 && fileName.All(IsHex);
 
-    private IActionResult? ValidateRequest(ref string filename)
+    private StatusCodeResult? ValidateRequest(ref string filename)
     {
         if (string.IsNullOrEmpty(filename))
             return StatusCode((int) HttpStatusCode.InternalServerError);
