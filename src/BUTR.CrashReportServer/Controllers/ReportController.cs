@@ -201,7 +201,7 @@ public class ReportController : ControllerBase
         {
             Sitemap = Enumerable.Range(0, sitemaps).Select(x => new Sitemap
             {
-                Location = $"{_options.BaseUri}/{x}",
+                Location = $"{_options.BaseUri}/sitemap_{x}.xml",
             }).ToList(),
         };
         return Ok(sitemap);
@@ -218,7 +218,7 @@ public class ReportController : ControllerBase
         {
             Url = _dbContext.Set<IdEntity>().Skip(idx * 50000).Take(50000).Select(x => new { x.FileId, x.Created }).Select(x => new Url
             {
-                Location = $"{_options.BaseUri}/sitemap_{x.FileId}.xml",
+                Location = $"{_options.BaseUri}/{x.FileId}",
                 TimeStamp = x.Created,
                 Priority = 0.5,
                 ChangeFrequency = ChangeFrequency.Never,
