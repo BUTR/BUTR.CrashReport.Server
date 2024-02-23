@@ -187,12 +187,12 @@ public class ReportController : ControllerBase
     }
 
     [AllowAnonymous]
-    [HttpGet("sitemap.xml")]
+    [HttpGet("sitemap_index.xml")]
     [Produces("application/xml")]
     [ProducesResponseType(typeof(Urlset), StatusCodes.Status200OK, "application/xml")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+xml")]
     [ResponseCache(Duration = 60 * 60 * 4)]
-    public IActionResult Sitemap()
+    public IActionResult SitemapIndex()
     {
         var count = _dbContext.Set<IdEntity>().Count();
         var sitemaps = count % 50000;
