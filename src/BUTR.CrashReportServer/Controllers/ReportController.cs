@@ -2,6 +2,8 @@
 using BUTR.CrashReportServer.Models;
 using BUTR.CrashReportServer.Models.API;
 using BUTR.CrashReportServer.Models.Database;
+using BUTR.CrashReportServer.Models.Sitemaps;
+using BUTR.CrashReportServer.Options;
 using BUTR.CrashReportServer.Services;
 
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using System;
 using System.Collections.Generic;
@@ -33,12 +36,14 @@ public class ReportController : ControllerBase
     }
 
     private readonly ILogger _logger;
+    private readonly ReportOptions _options;
     private readonly AppDbContext _dbContext;
     private readonly GZipCompressor _gZipCompressor;
 
-    public ReportController(ILogger<ReportController> logger, AppDbContext dbContext, GZipCompressor gZipCompressor)
+    public ReportController(ILogger<ReportController> logger, IOptionsSnapshot<ReportOptions> options, AppDbContext dbContext, GZipCompressor gZipCompressor)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
     }
@@ -179,5 +184,26 @@ public class ReportController : ControllerBase
         return Ok(_dbContext.Set<IdEntity>()
             .Where(x => x.Created.Ticks > body.DateTime.Ticks)
             .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
+    }
+
+    [AllowAnonymous]
+    [HttpGet("sitemap.xml")]
+    [Produces("application/xml")]
+    [ProducesResponseType(typeof(Urlset), StatusCodes.Status200OK, "application/xml")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+xml")]
+    [ResponseCache(Duration = 60 * 60 * 4)]
+    public IActionResult Sitemap(CancellationToken ct)
+    {
+        var sitemap = new Urlset
+        {
+            Url = _dbContext.Set<IdEntity>().Select(x => new { x.FileId, x.Created }).Select(x => new Url
+            {
+                Location = $"{_options.BaseUri}/{x.FileId}",
+                TimeStamp = x.Created,
+                Priority = 0.5,
+                ChangeFrequency = ChangeFrequency.Never,
+            }).ToList(),
+        };
+        return Ok(sitemap);
     }
 }

@@ -50,7 +50,7 @@ public sealed class DatabaseMigrator : BackgroundService
         var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         var dbContextPool = new ObjectPool<AppDbContext>(dbContextFactory.CreateDbContextAsync);
 
-        var options = new ParallelOptions { CancellationToken = ct, MaxDegreeOfParallelism = 4 };
+        var options = new ParallelOptions { CancellationToken = ct };
         await Parallel.ForEachAsync(Enumerable.Range(0, 4), options, async (_, ct2) =>
         {
             var dbContext = await dbContextPool.GetAsync(ct2);

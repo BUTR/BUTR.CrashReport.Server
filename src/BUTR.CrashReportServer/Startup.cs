@@ -6,6 +6,7 @@ using BUTR.CrashReportServer.Services;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,6 +41,7 @@ public class Startup
         services.Configure<AuthOptions>(_configuration.GetSection("Auth"));
         services.Configure<StorageOptions>(_configuration.GetSection("Storage"));
         services.Configure<CrashUploadOptions>(_configuration.GetSection("CrashUpload"));
+        services.Configure<ReportOptions>(_configuration.GetSection("Report"));
 
         services.AddTransient<RandomNumberGenerator>(_ => RandomNumberGenerator.Create());
         services.AddSingleton<HexGenerator>();
@@ -102,13 +104,15 @@ public class Startup
             opts.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
             opts.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
-        });
+        }).AddXmlSerializerFormatters().AddXmlDataContractSerializerFormatters();
         services.Configure<JsonSerializerOptions>(opts =>
         {
             opts.PropertyNameCaseInsensitive = true;
             opts.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             opts.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         });
+        
+        services.AddResponseCaching();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -122,6 +126,8 @@ public class Startup
         app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", _appName));
 
         app.UseRouting();
+        
+        app.UseResponseCaching();
 
         app.UseAuthentication();
         app.UseAuthorization();
