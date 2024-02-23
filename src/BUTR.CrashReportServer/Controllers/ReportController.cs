@@ -192,11 +192,35 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(Urlset), StatusCodes.Status200OK, "application/xml")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+xml")]
     [ResponseCache(Duration = 60 * 60 * 4)]
-    public IActionResult Sitemap(CancellationToken ct)
+    public IActionResult Sitemap()
+    {
+        var count = _dbContext.Set<IdEntity>().Count();
+        var sitemaps = count % 50000;
+        
+        
+        var sitemap = new Urlset
+        {
+            Url = Enumerable.Range(0, sitemaps).Select(x => new Url
+            {
+                Location = $"{_options.BaseUri}/{x}",
+                TimeStamp = DateTime.UtcNow,
+                Priority = 0.5,
+                ChangeFrequency = ChangeFrequency.Never,
+            }).ToList(),
+        };
+        return Ok(sitemap);
+    }
+    [AllowAnonymous]
+    [HttpGet("sitemap_{idx:int}.xml")]
+    [Produces("application/xml")]
+    [ProducesResponseType(typeof(Urlset), StatusCodes.Status200OK, "application/xml")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+xml")]
+    [ResponseCache(Duration = 60 * 60 * 4)]
+    public IActionResult Sitemap(int idx)
     {
         var sitemap = new Urlset
         {
-            Url = _dbContext.Set<IdEntity>().Select(x => new { x.FileId, x.Created }).Select(x => new Url
+            Url = _dbContext.Set<IdEntity>().Skip(idx * 50000).Take(50000).Select(x => new { x.FileId, x.Created }).Select(x => new Url
             {
                 Location = $"{_options.BaseUri}/{x.FileId}",
                 TimeStamp = x.Created,
