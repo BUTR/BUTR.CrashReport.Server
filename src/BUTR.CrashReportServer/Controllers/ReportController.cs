@@ -197,15 +197,11 @@ public class ReportController : ControllerBase
         var count = _dbContext.Set<IdEntity>().Count();
         var sitemaps = count % 50000;
         
-        
-        var sitemap = new Urlset
+        var sitemap = new SitemapIndex
         {
-            Url = Enumerable.Range(0, sitemaps).Select(x => new Url
+            Sitemap = Enumerable.Range(0, sitemaps).Select(x => new Sitemap
             {
                 Location = $"{_options.BaseUri}/{x}",
-                TimeStamp = DateTime.UtcNow,
-                Priority = 0.5,
-                ChangeFrequency = ChangeFrequency.Never,
             }).ToList(),
         };
         return Ok(sitemap);
