@@ -218,7 +218,7 @@ public class ReportController : ControllerBase
         {
             Url = _dbContext.Set<IdEntity>().Skip(idx * 50000).Take(50000).Select(x => new { x.FileId, x.Created }).Select(x => new Url
             {
-                Location = $"{_options.BaseUri}/{x.FileId}",
+                Location = $"{_options.BaseUri}/sitemap_{x.FileId}.xml",
                 TimeStamp = x.Created,
                 Priority = 0.5,
                 ChangeFrequency = ChangeFrequency.Never,
