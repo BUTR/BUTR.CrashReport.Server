@@ -10,7 +10,7 @@ public class JsonEntityConfiguration : BaseEntityConfiguration<JsonEntity>
     protected override void ConfigureModel(EntityTypeBuilder<JsonEntity> builder)
     {
         builder.Property<string>(nameof(IdEntity.FileId)).HasColumnName("file_id");
-        builder.Property(p => p.CrashReport).HasColumnName("data").HasColumnType("jsonb");
+        builder.Property(p => p.CrashReportCompressed).HasColumnName("data_compressed");
         builder.ToTable("json_entity").HasKey(nameof(IdEntity.FileId));
 
         builder.HasOne(x => x.Id)

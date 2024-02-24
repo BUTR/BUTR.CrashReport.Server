@@ -20,7 +20,7 @@ public static class HostExtensions
         {
             var migrations = (await dbContext.Database.GetPendingMigrationsAsync()).Count();
             await dbContext.Database.MigrateAsync();
-            //if (migrations > 0) await dbContext.Database.ExecuteSqlRawAsync("VACUUM;");
+            if (migrations > 0) await dbContext.Database.ExecuteSqlRawAsync("VACUUM;");
         }
         catch (Exception ex)
         {

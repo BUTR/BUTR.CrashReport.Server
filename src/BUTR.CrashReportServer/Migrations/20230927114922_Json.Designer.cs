@@ -3,6 +3,7 @@ using System;
 using BUTR.CrashReportServer.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,18 +11,20 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BUTR.CrashReportServer.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230927114922_Json")]
+    partial class Json
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "7.0.11");
+            modelBuilder.HasAnnotation("ProductVersion", "7.0.4");
 
             modelBuilder.Entity("BUTR.CrashReportServer.Models.Database.FileEntity", b =>
                 {
                     b.Property<string>("FileId")
                         .HasColumnType("TEXT")
-                        .HasColumnName("file_id");
+                        .HasColumnName("name");
 
                     b.Property<byte[]>("DataCompressed")
                         .IsRequired()
@@ -37,22 +40,16 @@ namespace BUTR.CrashReportServer.Migrations
             modelBuilder.Entity("BUTR.CrashReportServer.Models.Database.IdEntity", b =>
                 {
                     b.Property<string>("FileId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
-                        .HasColumnName("file_id")
-                        .HasDefaultValueSql("hex(randomblob(3))");
+                        .HasColumnName("file_id");
 
                     b.Property<Guid>("CrashReportId")
                         .HasColumnType("TEXT")
                         .HasColumnName("crash_report_id");
 
-                    b.Property<DateTime>("Created")
+                    b.Property<DateTimeOffset>("Created")
                         .HasColumnType("TEXT")
                         .HasColumnName("created");
-
-                    b.Property<byte>("Version")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("version");
 
                     b.HasKey("FileId");
 
