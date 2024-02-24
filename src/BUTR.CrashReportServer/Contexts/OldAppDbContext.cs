@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace BUTR.CrashReportServer.Contexts;
 
-public class FileEntityConfiguration : BaseEntityConfiguration<FileEntity>
+public class OldFileEntityConfiguration : BaseEntityConfiguration<FileEntity>
 {
     protected override void ConfigureModel(EntityTypeBuilder<FileEntity> builder)
     {
@@ -23,7 +23,7 @@ public class FileEntityConfiguration : BaseEntityConfiguration<FileEntity>
         builder.Navigation(x => x.Id).AutoInclude();
     }
 }
-public class IdEntityConfiguration : BaseEntityConfiguration<IdEntity>
+public class OldIdEntityConfiguration : BaseEntityConfiguration<IdEntity>
 {
     protected override void ConfigureModel(EntityTypeBuilder<IdEntity> builder)
     {
@@ -62,8 +62,8 @@ public class OldAppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.ApplyConfiguration(new IdEntityConfiguration());
-        modelBuilder.ApplyConfiguration(new FileEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new OldIdEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new OldFileEntityConfiguration());
         modelBuilder.ApplyConfiguration(new OldJsonEntityConfiguration());
     }
 }
