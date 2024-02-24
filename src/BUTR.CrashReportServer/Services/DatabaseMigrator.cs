@@ -38,7 +38,11 @@ public sealed class DatabaseMigrator : BackgroundService
         var idDataCount = sqlite.Set<IdEntity>().Count();
         for (var i = 0; i < idDataCount % take; i+= take)
         {
-            var data = await sqlite.Set<IdEntity>().OrderBy(x => x.FileId).Skip(i * take).Take(take).ToArrayAsync(ct);
+            var data = await sqlite.Set<IdEntity>().OrderBy(x => x.FileId).Skip(i * take).Take(take).AsAsyncEnumerable()
+                .Select(x => x with
+                {
+                    Created = DateTime.SpecifyKind(x.Created, DateTimeKind.Utc)
+                }).ToArrayAsync(ct);
             await postgres.Set<IdEntity>().AddRangeAsync(data, ct);
             await postgres.SaveChangesAsync(ct);
         }
