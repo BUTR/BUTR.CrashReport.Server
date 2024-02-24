@@ -38,22 +38,22 @@ public sealed class DatabaseMigrator : BackgroundService
         var idDataCount = sqlite.Set<IdEntity>().Count();
         for (var i = 0; i < idDataCount % take; i+= take)
         {
-            var data = await sqlite.Set<IdEntity>().Skip(i * take).Take(take).ToArrayAsync(ct);
+            var data = await sqlite.Set<IdEntity>().OrderBy(x => x.FileId).Skip(i * take).Take(take).ToArrayAsync(ct);
             await postgres.Set<IdEntity>().AddRangeAsync(data, ct);
         }
         
         var fileDataCount = sqlite.Set<FileEntity>().Count();
         for (var i = 0; i < fileDataCount % take; i+= take)
         {
-            var data = await sqlite.Set<FileEntity>().Skip(i * take).Take(take).ToArrayAsync(ct);
+            var data = await sqlite.Set<FileEntity>().OrderBy(x => x.Id.FileId).Skip(i * take).Take(take).ToArrayAsync(ct);
             await postgres.Set<FileEntity>().AddRangeAsync(data, ct);
         }
         
         var jsonDataCount = sqlite.Set<OldJsonEntity>().Count();
         for (var i = 0; i < jsonDataCount % take; i+= take)
         {
-            var data = await sqlite.Set<OldJsonEntity>().Skip(i * take).Take(take).AsAsyncEnumerable()
-                .SelectAwait(async (x) => new JsonEntity
+            var data = await sqlite.Set<OldJsonEntity>().OrderBy(x => x.Id.FileId).Skip(i * take).Take(take).AsAsyncEnumerable()
+                .SelectAwait(async x => new JsonEntity
                 {
                     Id = x.Id,
                     CrashReport = await new StreamReader(await _compressor.DecompressAsync(x.CrashReportCompressed, ct)).ReadToEndAsync(ct),
