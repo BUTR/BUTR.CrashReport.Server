@@ -40,6 +40,7 @@ public sealed class DatabaseMigrator : BackgroundService
         {
             var data = await sqlite.Set<IdEntity>().OrderBy(x => x.FileId).Skip(i * take).Take(take).ToArrayAsync(ct);
             await postgres.Set<IdEntity>().AddRangeAsync(data, ct);
+            await postgres.SaveChangesAsync(ct);
         }
         
         var fileDataCount = sqlite.Set<FileEntity>().Count();
@@ -47,6 +48,7 @@ public sealed class DatabaseMigrator : BackgroundService
         {
             var data = await sqlite.Set<FileEntity>().OrderBy(x => x.Id.FileId).Skip(i * take).Take(take).ToArrayAsync(ct);
             await postgres.Set<FileEntity>().AddRangeAsync(data, ct);
+            await postgres.SaveChangesAsync(ct);
         }
         
         var jsonDataCount = sqlite.Set<OldJsonEntity>().Count();
@@ -59,6 +61,7 @@ public sealed class DatabaseMigrator : BackgroundService
                     CrashReport = await new StreamReader(await _compressor.DecompressAsync(x.CrashReportCompressed, ct)).ReadToEndAsync(ct),
                 }).ToArrayAsync(ct);
             await postgres.Set<JsonEntity>().AddRangeAsync(data, ct);
+            await postgres.SaveChangesAsync(ct);
         }
     }
 }
