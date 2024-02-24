@@ -21,6 +21,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Security.Authentication;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,13 +39,15 @@ public class ReportController : ControllerBase
     private readonly ILogger _logger;
     private readonly ReportOptions _options;
     private readonly AppDbContext _dbContext;
+    private readonly OldAppDbContext _dbContextOld;
     private readonly GZipCompressor _gZipCompressor;
 
-    public ReportController(ILogger<ReportController> logger, IOptionsSnapshot<ReportOptions> options, AppDbContext dbContext, GZipCompressor gZipCompressor)
+    public ReportController(ILogger<ReportController> logger, IOptionsSnapshot<ReportOptions> options, AppDbContext dbContext, OldAppDbContext dbContextOld, GZipCompressor gZipCompressor)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _dbContextOld = dbContextOld ?? throw new ArgumentNullException(nameof(dbContextOld));
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
     }
 
@@ -75,15 +78,25 @@ public class ReportController : ControllerBase
         if (ValidateRequest(ref filename) is { } errorResponse)
             return errorResponse;
 
-        if (await _dbContext.Set<FileEntity>().FirstOrDefaultAsync(x => x.Id.FileId == filename, ct) is not { } file)
+        var file = await _dbContext.Set<FileEntity>().FirstOrDefaultAsync(x => x.Id.FileId == filename, ct);
+        var fileOld = await _dbContextOld.Set<FileEntity>().FirstOrDefaultAsync(x => x.Id.FileId == filename, ct);
+        if (file is null && fileOld is null)
             return StatusCode(StatusCodes.Status404NotFound);
 
         if (Request.GetTypedHeaders().AcceptEncoding.Any(x => x.Value.Equals("gzip", StringComparison.InvariantCultureIgnoreCase)))
         {
             Response.Headers.ContentEncoding = "gzip";
-            return File(file.DataCompressed, "text/html; charset=utf-8", true);
+            if (file is not null)
+                return File(file.DataCompressed, "text/html; charset=utf-8", true);
+            if (fileOld is not null)
+                return File(fileOld.DataCompressed, "text/html; charset=utf-8", true);
         }
-        return File(await _gZipCompressor.DecompressAsync(file.DataCompressed, ct), "text/html; charset=utf-8", true);
+        if (file is not null)
+            return File(await _gZipCompressor.DecompressAsync(file.DataCompressed, ct), "text/html; charset=utf-8", true);
+        if (fileOld is not null)
+            return File(await _gZipCompressor.DecompressAsync(fileOld.DataCompressed, ct), "text/html; charset=utf-8", true);
+        
+        return StatusCode(StatusCodes.Status500InternalServerError);
     }
 
     private async Task<IActionResult> GetJson(string filename, CancellationToken ct)
@@ -91,15 +104,26 @@ public class ReportController : ControllerBase
         if (ValidateRequest(ref filename) is { } errorResponse)
             return errorResponse;
 
-        if (await _dbContext.Set<JsonEntity>().FirstOrDefaultAsync(x => x.Id.FileId == filename, ct) is not { } file)
+        var file = await _dbContext.Set<JsonEntity>().FirstOrDefaultAsync(x => x.Id.FileId == filename, ct);
+        var fileOld = await _dbContextOld.Set<OldJsonEntity>().FirstOrDefaultAsync(x => x.Id.FileId == filename, ct);
+        if (file is null && fileOld is null)
             return StatusCode(StatusCodes.Status404NotFound);
 
         if (Request.GetTypedHeaders().AcceptEncoding.Any(x => x.Value.Equals("gzip", StringComparison.InvariantCultureIgnoreCase)))
         {
             Response.Headers.ContentEncoding = "gzip";
-            return File(file.CrashReportCompressed, "application/json; charset=utf-8", true);
+            if (file is not null)
+                return File(await _gZipCompressor.CompressAsync(new MemoryStream(Encoding.UTF8.GetBytes(file.CrashReport)), ct), "application/json; charset=utf-8", true);
+            if (fileOld is not null)
+                return File(fileOld.CrashReportCompressed, "application/json; charset=utf-8", true);
+            
         }
-        return File(await _gZipCompressor.DecompressAsync(file.CrashReportCompressed, ct), "application/json; charset=utf-8", true);
+        if (file is not null)
+            return File(new MemoryStream(Encoding.UTF8.GetBytes(file.CrashReport)), "application/json; charset=utf-8", true);
+        if (fileOld is not null)
+            return File(await _gZipCompressor.DecompressAsync(fileOld.CrashReportCompressed, ct), "application/json; charset=utf-8", true);
+        
+        return StatusCode(StatusCodes.Status500InternalServerError);
     }
 
     [AllowAnonymous]
