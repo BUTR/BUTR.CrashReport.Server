@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.IO.Pipelines;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -36,6 +37,7 @@ public class CrashUploadController : ControllerBase
     private readonly JsonSerializerOptions _jsonSerializerOptions;
     private readonly AppDbContext _dbContext;
     private readonly GZipCompressor _gZipCompressor;
+    private readonly HexGenerator _hexGenerator;
 
     private readonly Counter<int> _reportVersion;
 
@@ -45,6 +47,7 @@ public class CrashUploadController : ControllerBase
         IOptionsSnapshot<JsonSerializerOptions> jsonSerializerOptions,
         AppDbContext dbContext,
         GZipCompressor gZipCompressor,
+        HexGenerator hexGenerator,
         IMeterFactory meterFactory)
     {
         var meter = meterFactory.Create("BUTR.CrashReportServer.Controllers.CrashUploadController", "1.0.0");
@@ -56,25 +59,23 @@ public class CrashUploadController : ControllerBase
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
+        _hexGenerator = hexGenerator ?? throw new ArgumentNullException(nameof(hexGenerator));
     }
 
-    /*
-    private async Task<string> GenerateFileId(CancellationToken ct)
+    private string GenerateFileId(CancellationToken ct)
     {
-        const int count = 100;
+        const int count = 300;
         var fileId = string.Empty;
         while (!ct.IsCancellationRequested)
         {
-            var fileIds = Enumerable.Range(0, count).Select(_ => _hexGenerator.GetHex()).ToHashSet();
-            var existing = await _dbContext.Set<IdEntity>().Select(x => x.FileId).Where(x => fileIds.Contains(x)).ToArrayAsync(ct);
-            if (existing.Length == count) continue;
-            fileIds.ExceptWith(existing);
-            fileId = fileIds.First();
+            var fileIds = _hexGenerator.GetHex(count, 3);
+            var existing = _dbContext.Set<IdEntity>().Select(x => x.FileId).Where(x => fileIds.Contains(x)).ToHashSet();
+            if (existing.Count == count) continue;
+            fileId = existing.First(x => !fileIds.Contains(x));
             break;
         }
         return fileId;
     }
-    */
 
     private async Task<IActionResult> UploadHtmlAsync(CancellationToken ct)
     {
@@ -93,13 +94,13 @@ public class CrashUploadController : ControllerBase
             Converters = { new JsonStringEnumConverter() }
         }), ct);
 
-        idEntity = new IdEntity { FileId = default!, CrashReportId = id, Version = version, Created = DateTime.UtcNow, };
+        idEntity = new IdEntity { FileId = GenerateFileId(ct), CrashReportId = id, Version = version, Created = DateTime.UtcNow, };
         await _dbContext.Set<IdEntity>().AddAsync(idEntity, ct);
         await _dbContext.Set<FileEntity>().AddAsync(new FileEntity { Id = idEntity, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
         if (version >= 13) await _dbContext.Set<JsonEntity>().AddAsync(new JsonEntity { Id = idEntity, CrashReportCompressed = compressedJsonStream.ToArray(), }, ct);
         await _dbContext.SaveChangesAsync(ct);
 
-        _reportVersion.Add(1, new[] {new KeyValuePair<string, object?>("Version", version)});
+        _reportVersion.Add(1, new[] { new KeyValuePair<string, object?>("Version", version) });
 
         return Ok($"{_options.BaseUri}/{idEntity.FileId}");
     }
@@ -121,7 +122,7 @@ public class CrashUploadController : ControllerBase
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(html.AsStream(), ct);
         await using var compressedJsonStream = await _gZipCompressor.CompressAsync(json.AsStream(), ct);
 
-        idEntity = new IdEntity { FileId = default!, CrashReportId = crashReport.Id, Version = crashReport.Version, Created = DateTime.UtcNow, };
+        idEntity = new IdEntity { FileId = GenerateFileId(ct), CrashReportId = crashReport.Id, Version = crashReport.Version, Created = DateTime.UtcNow, };
         await _dbContext.Set<IdEntity>().AddAsync(idEntity, ct);
         await _dbContext.Set<JsonEntity>().AddAsync(new JsonEntity { Id = idEntity, CrashReportCompressed = compressedJsonStream.ToArray(), }, ct);
         await _dbContext.Set<FileEntity>().AddAsync(new FileEntity { Id = idEntity, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
