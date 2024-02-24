@@ -56,6 +56,11 @@ public static class Program
         .CreateDefaultBuilder(args)
         .ConfigureServices((ctx, services) =>
         {
+            services.Configure<HostOptions>(hostOptions =>
+            {
+                hostOptions.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
+            });
+            
             if (ctx.Configuration.GetSection("Oltp") is { } oltpSection)
             {
                 var openTelemetry = services.AddOpenTelemetry()
