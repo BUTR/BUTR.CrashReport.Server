@@ -74,7 +74,7 @@ public class CrashUploadController : ControllerBase
             var existing = _dbContext.Set<IdEntity>().Select(x => x.FileId).Where(x => fileIds.Contains(x)).ToHashSet();
             var existing2 = _dbContextOld.Set<IdEntity>().Select(x => x.FileId).Where(x => fileIds.Contains(x)).ToHashSet();
             //if (existing.Count == count) continue;
-            fileId = existing.First(x => !fileIds.Contains(x));
+            //fileId = existing.First(x => !fileIds.Contains(x));
             fileIds.ExceptWith(existing);
             fileIds.ExceptWith(existing2);
             if (fileIds.Count == 0) break;
