@@ -36,7 +36,8 @@ public sealed class DatabaseMigrator : BackgroundService
         const int take = 10000;
         
         var idDataCount = sqlite.Set<IdEntity>().AsNoTracking().Count();
-        for (var i = 0; i < idDataCount % take; i+= take)
+        var idDataIterations = idDataCount % take;
+        for (var i = 0; i < idDataIterations; i++)
         {
             var data = await sqlite.Set<IdEntity>().AsNoTracking().OrderBy(x => x.FileId).Skip(i * take).Take(take).AsAsyncEnumerable()
                 .Select(x => x with
@@ -48,7 +49,8 @@ public sealed class DatabaseMigrator : BackgroundService
         }
         
         var fileDataCount = sqlite.Set<FileEntity>().AsNoTracking().Count();
-        for (var i = 0; i < fileDataCount % take; i+= take)
+        var fileDataIterations = fileDataCount % take;
+        for (var i = 0; i < fileDataIterations; i+= take)
         {
             var data = await sqlite.Set<FileEntity>().AsNoTracking().OrderBy(x => x.Id.FileId).Skip(i * take).Take(take).ToArrayAsync(ct);
             await postgres.Set<FileEntity>().AddRangeAsync(data, ct);
@@ -56,7 +58,8 @@ public sealed class DatabaseMigrator : BackgroundService
         }
         
         var jsonDataCount = sqlite.Set<OldJsonEntity>().AsNoTracking().Count();
-        for (var i = 0; i < jsonDataCount % take; i+= take)
+        var jsonDataIterations = jsonDataCount % take;
+        for (var i = 0; i < jsonDataIterations; i+= take)
         {
             var data = await sqlite.Set<OldJsonEntity>().OrderBy(x => x.Id.FileId).Skip(i * take).Take(take).AsAsyncEnumerable()
                 .SelectAwait(async x => new JsonEntity
