@@ -69,9 +69,10 @@ public class CrashUploadController : ControllerBase
         {
             var fileIds = _hexGenerator.GetHex(count, 3);
             var existing = _dbContext.IdEntities.Select(x => x.FileId).Where(x => fileIds.Contains(x)).ToHashSet();
-            if (existing.Count == count) continue;
+            if (existing.Count == fileIds.Count) continue;
             if (existing.Count == 0) return fileIds.First();
-            return existing.First(x => !fileIds.Contains(x));
+            if (existing.FirstOrDefault(x => !fileIds.Contains(x)) is not { } freeFileId) continue;
+            return freeFileId;
         }
         return fileId;
     }
