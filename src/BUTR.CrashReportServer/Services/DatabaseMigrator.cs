@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -49,6 +50,8 @@ public sealed class DatabaseMigrator : BackgroundService
                 }).ToArrayAsync(ct);
             await postgres.Set<IdEntity>().AddRangeAsync(data, ct);
             await postgres.SaveChangesAsync(ct);
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect();
         }
         
         var fileDataCount = sqlite.FileEntities.AsNoTracking().Count();
@@ -64,6 +67,8 @@ public sealed class DatabaseMigrator : BackgroundService
                 .ToArrayAsync(ct);
             await postgres.FileEntities.AddRangeAsync(data, ct);
             await postgres.SaveChangesAsync(ct);
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect();
         }
         
         var jsonDataCount = sqlite.JsonEntities.AsNoTracking().Count();
@@ -78,6 +83,8 @@ public sealed class DatabaseMigrator : BackgroundService
                 }).ToArrayAsync(ct);
             await postgres.JsonEntities.AddRangeAsync(data, ct);
             await postgres.SaveChangesAsync(ct);
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect();
         }
     }
 }
