@@ -1,11 +1,11 @@
 ﻿using BUTR.CrashReport.Bannerlord;
+using BUTR.CrashReport.Bannerlord.Parser;
 using BUTR.CrashReport.Models;
 using BUTR.CrashReportServer.Contexts;
 using BUTR.CrashReportServer.Extensions;
 using BUTR.CrashReportServer.Models.Database;
 using BUTR.CrashReportServer.Options;
 using BUTR.CrashReportServer.Services;
-using BUTR.CrashReportServer.Utils;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -17,6 +17,7 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -31,6 +32,11 @@ public class CrashUploadController : ControllerBase
 {
     public sealed record CrashReportUploadBody(CrashReportModel CrashReport, ICollection<LogSource> LogSources);
 
+    private static readonly JsonSerializerOptions _jsonSerializerOptionsWeb = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+    
     private readonly ILogger _logger;
     private readonly CrashUploadOptions _options;
     private readonly JsonSerializerOptions _jsonSerializerOptions;
@@ -71,8 +77,7 @@ public class CrashUploadController : ControllerBase
             var existing = _dbContext.IdEntities.Select(x => x.FileId).Where(x => fileIds.Contains(x)).ToHashSet();
             if (existing.Count == fileIds.Count) continue;
             if (existing.Count == 0) return fileIds.First();
-            if (existing.FirstOrDefault(x => !fileIds.Contains(x)) is not { } freeFileId) continue;
-            return freeFileId;
+            return fileIds.First(x => !existing.Contains(x));
         }
         return fileId;
     }
@@ -81,20 +86,19 @@ public class CrashUploadController : ControllerBase
     {
         Request.EnableBuffering();
 
-        var (valid, id, version, crashReportModel) = await CrashReportRawParser.TryReadCrashReportDataAsync(Request.BodyReader, ct);
+        using var streamReader = new StreamReader(Request.Body);
+        var html = await streamReader.ReadToEndAsync(ct);
+        var valid = CrashReportParser.TryParse(html, out var version, out var crashReportModel, out _);
         if (!valid)
             return StatusCode(StatusCodes.Status500InternalServerError);
 
-        if (await _dbContext.IdEntities.FirstOrDefaultAsync(x => x.CrashReportId == id, ct) is { } idEntity)
+        if (await _dbContext.IdEntities.FirstOrDefaultAsync(x => x.CrashReportId == crashReportModel.Id, ct) is { } idEntity)
             return Ok($"{_options.BaseUri}/{idEntity.FileId}");
 
-        var json = JsonSerializer.Serialize(crashReportModel, new JsonSerializerOptions(JsonSerializerDefaults.Web)
-        {
-            Converters = { new JsonStringEnumConverter() }
-        });
+        var json = JsonSerializer.Serialize(crashReportModel, _jsonSerializerOptionsWeb);
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(Request.Body, ct);
 
-        idEntity = new IdEntity { FileId = GenerateFileId(ct), CrashReportId = id, Version = version, Created = DateTime.UtcNow, };
+        idEntity = new IdEntity { FileId = GenerateFileId(ct), CrashReportId = crashReportModel.Id, Version = version, Created = DateTime.UtcNow, };
         await _dbContext.IdEntities.AddAsync(idEntity, ct);
         await _dbContext.FileEntities.AddAsync(new FileEntity { FileId = idEntity.FileId, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
         if (version >= 13) await _dbContext.JsonEntities.AddAsync(new JsonEntity { FileId = idEntity.FileId, CrashReport = json, }, ct);
@@ -113,10 +117,7 @@ public class CrashUploadController : ControllerBase
         if (await _dbContext.IdEntities.FirstOrDefaultAsync(x => x.CrashReportId == crashReport.Id, ct) is { } idEntity)
             return Ok($"{_options.BaseUri}/{idEntity.FileId}");
 
-        var json = JsonSerializer.Serialize(crashReport, new JsonSerializerOptions(JsonSerializerDefaults.Web)
-        {
-            Converters = { new JsonStringEnumConverter() }
-        });
+        var json = JsonSerializer.Serialize(crashReport, _jsonSerializerOptionsWeb);
         var html = CrashReportHtmlRenderer.AddData(CrashReportHtmlRenderer.Build(crashReport, logSources), json);
 
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(html.AsStream(), ct);
