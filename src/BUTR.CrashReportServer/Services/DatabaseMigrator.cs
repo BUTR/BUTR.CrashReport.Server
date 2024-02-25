@@ -31,7 +31,6 @@ public sealed class DatabaseMigrator : BackgroundService
         var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         var dbContextFactoryOld = scope.ServiceProvider.GetRequiredService<IDbContextFactory<OldAppDbContext>>();
 
-        var postgres = await dbContextFactory.CreateDbContextAsync(ct);
         var sqlite = await dbContextFactoryOld.CreateDbContextAsync(ct);
 
         const int take = 10000;
@@ -40,6 +39,7 @@ public sealed class DatabaseMigrator : BackgroundService
         var idDataIterations = (idDataCount / take) + 1;
         for (var i = 0; i < idDataIterations; i++)
         {
+            await using var postgres = await dbContextFactory.CreateDbContextAsync(ct);
             var data = await sqlite.Set<OldIdEntity>().AsNoTracking().OrderBy(x => x.RowId).Skip(i * take).Take(take).AsAsyncEnumerable()
                 .Select(x => new IdEntity
                 {
@@ -58,6 +58,7 @@ public sealed class DatabaseMigrator : BackgroundService
         var fileDataIterations = (fileDataCount / take) + 1;
         for (var i = 0; i < fileDataIterations; i++)
         {
+            await using var postgres = await dbContextFactory.CreateDbContextAsync(ct);
             var data = await sqlite.FileEntities.AsNoTracking().OrderBy(x => x.RowId).Skip(i * take).Take(take).AsAsyncEnumerable()
                 .Select(x => new FileEntity
                 {
@@ -75,6 +76,7 @@ public sealed class DatabaseMigrator : BackgroundService
         var jsonDataIterations = (jsonDataCount / take) + 1;
         for (var i = 0; i < jsonDataIterations; i++)
         {
+            await using var postgres = await dbContextFactory.CreateDbContextAsync(ct);
             var data = await sqlite.JsonEntities.OrderBy(x => x.RowId).Skip(i * take).Take(take).AsAsyncEnumerable()
                 .SelectAwait(async x => new JsonEntity
                 {
