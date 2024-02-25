@@ -1,4 +1,5 @@
-﻿using BUTR.CrashReportServer.Contexts;
+﻿/*
+using BUTR.CrashReportServer.Contexts;
 using BUTR.CrashReportServer.Models.Database;
 
 using Microsoft.EntityFrameworkCore;
@@ -90,3 +91,4 @@ public sealed class DatabaseMigrator : BackgroundService
         }
     }
 }
+*/

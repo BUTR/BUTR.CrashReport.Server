@@ -35,7 +35,6 @@ public class CrashUploadController : ControllerBase
     private readonly CrashUploadOptions _options;
     private readonly JsonSerializerOptions _jsonSerializerOptions;
     private readonly AppDbContext _dbContext;
-    private readonly OldAppDbContext _dbContextOld;
     private readonly GZipCompressor _gZipCompressor;
     private readonly HexGenerator _hexGenerator;
 
@@ -48,7 +47,7 @@ public class CrashUploadController : ControllerBase
         AppDbContext dbContext,
         GZipCompressor gZipCompressor,
         HexGenerator hexGenerator,
-        IMeterFactory meterFactory, OldAppDbContext dbContextOld)
+        IMeterFactory meterFactory)
     {
         var meter = meterFactory.Create("BUTR.CrashReportServer.Controllers.CrashUploadController", "1.0.0");
 
@@ -58,7 +57,6 @@ public class CrashUploadController : ControllerBase
         _jsonSerializerOptions = jsonSerializerOptions.Value ?? throw new ArgumentNullException(nameof(jsonSerializerOptions));
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-        _dbContextOld = dbContextOld ?? throw new ArgumentNullException(nameof(dbContextOld));
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
         _hexGenerator = hexGenerator ?? throw new ArgumentNullException(nameof(hexGenerator));
     }
@@ -71,13 +69,9 @@ public class CrashUploadController : ControllerBase
         {
             var fileIds = _hexGenerator.GetHex(count, 3);
             var existing = _dbContext.IdEntities.Select(x => x.FileId).Where(x => fileIds.Contains(x)).ToHashSet();
-            var existing2 = _dbContextOld.IdEntities.Select(x => x.FileId).Where(x => fileIds.Contains(x)).ToHashSet();
-            //if (existing.Count == count) continue;
-            //fileId = existing.First(x => !fileIds.Contains(x));
-            fileIds.ExceptWith(existing);
-            fileIds.ExceptWith(existing2);
-            if (fileIds.Count == 0) continue;
-            return fileIds.First();
+            if (existing.Count == count) continue;
+            if (existing.Count == 0) return fileIds.First();
+            return existing.First(x => !fileIds.Contains(x));
         }
         return fileId;
     }
