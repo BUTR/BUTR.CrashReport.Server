@@ -2,6 +2,7 @@
 
 public sealed record JsonEntity : IEntity
 {
-    public required IdEntity Id { get; set; }
-    public required byte[] CrashReportCompressed { get; set; }
+    public required string FileId { get; set; }
+    public IdEntity? Id { get; set; }
+    public required string CrashReport { get; set; }
 }

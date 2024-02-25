@@ -9,13 +9,13 @@ public class JsonEntityConfiguration : BaseEntityConfiguration<JsonEntity>
 {
     protected override void ConfigureModel(EntityTypeBuilder<JsonEntity> builder)
     {
-        builder.Property<string>(nameof(IdEntity.FileId)).HasColumnName("file_id");
-        builder.Property(p => p.CrashReportCompressed).HasColumnName("data_compressed");
-        builder.ToTable("json_entity").HasKey(nameof(IdEntity.FileId));
+        builder.Property(x => x.FileId).HasColumnName("file_id");
+        builder.Property(x => x.CrashReport).HasColumnName("data").HasColumnType("jsonb");
+        builder.ToTable("json_entity").HasKey(x => x.FileId);
 
         builder.HasOne(x => x.Id)
             .WithOne()
-            .HasForeignKey<JsonEntity>(nameof(IdEntity.FileId))
+            .HasForeignKey<JsonEntity>(x => x.FileId)
             .HasPrincipalKey<IdEntity>(x => x.FileId)
             .OnDelete(DeleteBehavior.Cascade);
 

@@ -9,13 +9,13 @@ public class FileEntityConfiguration : BaseEntityConfiguration<FileEntity>
 {
     protected override void ConfigureModel(EntityTypeBuilder<FileEntity> builder)
     {
-        builder.Property<string>(nameof(IdEntity.FileId)).HasColumnName("file_id");
-        builder.Property(p => p.DataCompressed).HasColumnName("data_compressed");
-        builder.ToTable("file_entity").HasKey(nameof(IdEntity.FileId)).HasName("file_entity_pkey");
+        builder.Property(x => x.FileId).HasColumnName("file_id");
+        builder.Property(x => x.DataCompressed).HasColumnName("data_compressed");
+        builder.ToTable("file_entity").HasKey(x => x.FileId).HasName("file_entity_pkey");
 
         builder.HasOne(x => x.Id)
             .WithOne()
-            .HasForeignKey<FileEntity>(nameof(IdEntity.FileId))
+            .HasForeignKey<FileEntity>(x => x.FileId)
             .HasPrincipalKey<IdEntity>(x => x.FileId)
             .OnDelete(DeleteBehavior.Cascade);
 

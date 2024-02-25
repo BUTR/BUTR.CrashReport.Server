@@ -9,6 +9,7 @@ using System.IO.Pipelines;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BUTR.CrashReportServer.Utils;
@@ -27,7 +28,7 @@ public static class CrashReportRawParser
     private static readonly byte[] JsonModelMarkerStart = "<div id='json-model-data' class='headers-container'>"u8.ToArray();
     private static readonly byte[] JsonModelMarkerEnd = "</div>"u8.ToArray();
 
-    public static async Task<(bool, Guid, byte, CrashReportModel?)> TryReadCrashReportDataAsync(PipeReader reader)
+    public static async Task<(bool, Guid, byte, CrashReportModel?)> TryReadCrashReportDataAsync(PipeReader reader, CancellationToken ct)
     {
         var crashRreportId = Guid.Empty;
         var crashReportVersion = (byte) 0;
@@ -35,7 +36,7 @@ public static class CrashReportRawParser
 
         while (true)
         {
-            var result = await reader.ReadAsync();
+            var result = await reader.ReadAsync(ct);
             var buffer = result.Buffer;
 
             while (!result.IsCompleted && !TryReadCrashReportData(ref buffer, out crashRreportId, out crashReportVersion))
@@ -51,7 +52,7 @@ public static class CrashReportRawParser
         var hasHitEndMarker = false;
         while (true)
         {
-            var result = await reader.ReadAsync();
+            var result = await reader.ReadAsync(ct);
             if (!TryParse(reader, ref result, ref hasHitStartMarker, ref hasHitEndMarker, out crashReportModel))
                 continue;
 

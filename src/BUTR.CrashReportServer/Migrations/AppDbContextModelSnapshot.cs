@@ -4,6 +4,7 @@ using BUTR.CrashReportServer.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -15,17 +16,21 @@ namespace BUTR.CrashReportServer.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "7.0.11");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "8.0.2")
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("BUTR.CrashReportServer.Models.Database.FileEntity", b =>
                 {
                     b.Property<string>("FileId")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("text")
                         .HasColumnName("file_id");
 
                     b.Property<byte[]>("DataCompressed")
                         .IsRequired()
-                        .HasColumnType("BLOB")
+                        .HasColumnType("bytea")
                         .HasColumnName("data_compressed");
 
                     b.HasKey("FileId")
@@ -37,21 +42,19 @@ namespace BUTR.CrashReportServer.Migrations
             modelBuilder.Entity("BUTR.CrashReportServer.Models.Database.IdEntity", b =>
                 {
                     b.Property<string>("FileId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
-                        .HasColumnName("file_id")
-                        .HasDefaultValueSql("hex(randomblob(3))");
+                        .HasColumnType("text")
+                        .HasColumnName("file_id");
 
                     b.Property<Guid>("CrashReportId")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("uuid")
                         .HasColumnName("crash_report_id");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created");
 
                     b.Property<byte>("Version")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("smallint")
                         .HasColumnName("version");
 
                     b.HasKey("FileId");
@@ -64,13 +67,13 @@ namespace BUTR.CrashReportServer.Migrations
             modelBuilder.Entity("BUTR.CrashReportServer.Models.Database.JsonEntity", b =>
                 {
                     b.Property<string>("FileId")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("text")
                         .HasColumnName("file_id");
 
-                    b.Property<byte[]>("CrashReportCompressed")
+                    b.Property<string>("CrashReport")
                         .IsRequired()
-                        .HasColumnType("BLOB")
-                        .HasColumnName("data_compressed");
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data");
 
                     b.HasKey("FileId");
 

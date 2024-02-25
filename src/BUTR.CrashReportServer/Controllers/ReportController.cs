@@ -21,6 +21,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Security.Authentication;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,13 +39,15 @@ public class ReportController : ControllerBase
     private readonly ILogger _logger;
     private readonly ReportOptions _options;
     private readonly AppDbContext _dbContext;
+    private readonly OldAppDbContext _dbContextOld;
     private readonly GZipCompressor _gZipCompressor;
 
-    public ReportController(ILogger<ReportController> logger, IOptionsSnapshot<ReportOptions> options, AppDbContext dbContext, GZipCompressor gZipCompressor)
+    public ReportController(ILogger<ReportController> logger, IOptionsSnapshot<ReportOptions> options, AppDbContext dbContext, OldAppDbContext dbContextOld, GZipCompressor gZipCompressor)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _dbContextOld = dbContextOld ?? throw new ArgumentNullException(nameof(dbContextOld));
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
     }
 
@@ -75,15 +78,25 @@ public class ReportController : ControllerBase
         if (ValidateRequest(ref filename) is { } errorResponse)
             return errorResponse;
 
-        if (await _dbContext.Set<FileEntity>().FirstOrDefaultAsync(x => x.Id.FileId == filename, ct) is not { } file)
+        var file = await _dbContext.FileEntities.FirstOrDefaultAsync(x => x.Id!.FileId == filename, ct);
+        var fileOld = await _dbContextOld.FileEntities.FirstOrDefaultAsync(x => x.Id.FileId == filename, ct);
+        if (file is null && fileOld is null)
             return StatusCode(StatusCodes.Status404NotFound);
 
         if (Request.GetTypedHeaders().AcceptEncoding.Any(x => x.Value.Equals("gzip", StringComparison.InvariantCultureIgnoreCase)))
         {
             Response.Headers.ContentEncoding = "gzip";
-            return File(file.DataCompressed, "text/html; charset=utf-8", true);
+            if (file is not null)
+                return File(file.DataCompressed, "text/html; charset=utf-8", true);
+            if (fileOld is not null)
+                return File(fileOld.DataCompressed, "text/html; charset=utf-8", true);
         }
-        return File(await _gZipCompressor.DecompressAsync(file.DataCompressed, ct), "text/html; charset=utf-8", true);
+        if (file is not null)
+            return File(await _gZipCompressor.DecompressAsync(file.DataCompressed, ct), "text/html; charset=utf-8", true);
+        if (fileOld is not null)
+            return File(await _gZipCompressor.DecompressAsync(fileOld.DataCompressed, ct), "text/html; charset=utf-8", true);
+        
+        return StatusCode(StatusCodes.Status500InternalServerError);
     }
 
     private async Task<IActionResult> GetJson(string filename, CancellationToken ct)
@@ -91,15 +104,26 @@ public class ReportController : ControllerBase
         if (ValidateRequest(ref filename) is { } errorResponse)
             return errorResponse;
 
-        if (await _dbContext.Set<JsonEntity>().FirstOrDefaultAsync(x => x.Id.FileId == filename, ct) is not { } file)
+        var file = await _dbContext.JsonEntities.FirstOrDefaultAsync(x => x.Id!.FileId == filename, ct);
+        var fileOld = await _dbContextOld.JsonEntities.FirstOrDefaultAsync(x => x.Id.FileId == filename, ct);
+        if (file is null && fileOld is null)
             return StatusCode(StatusCodes.Status404NotFound);
 
         if (Request.GetTypedHeaders().AcceptEncoding.Any(x => x.Value.Equals("gzip", StringComparison.InvariantCultureIgnoreCase)))
         {
             Response.Headers.ContentEncoding = "gzip";
-            return File(file.CrashReportCompressed, "application/json; charset=utf-8", true);
+            if (file is not null)
+                return File(await _gZipCompressor.CompressAsync(new MemoryStream(Encoding.UTF8.GetBytes(file.CrashReport)), ct), "application/json; charset=utf-8", true);
+            if (fileOld is not null)
+                return File(fileOld.CrashReportCompressed, "application/json; charset=utf-8", true);
+            
         }
-        return File(await _gZipCompressor.DecompressAsync(file.CrashReportCompressed, ct), "application/json; charset=utf-8", true);
+        if (file is not null)
+            return File(new MemoryStream(Encoding.UTF8.GetBytes(file.CrashReport)), "application/json; charset=utf-8", true);
+        if (fileOld is not null)
+            return File(await _gZipCompressor.DecompressAsync(fileOld.CrashReportCompressed, ct), "application/json; charset=utf-8", true);
+        
+        return StatusCode(StatusCodes.Status500InternalServerError);
     }
 
     [AllowAnonymous]
@@ -137,10 +161,10 @@ public class ReportController : ControllerBase
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
     public async Task<IActionResult> Delete(string filename)
     {
-        if (await _dbContext.Set<FileEntity>().Where(x => x.Id.FileId == filename).ExecuteDeleteAsync(CancellationToken.None) == 0)
+        if (await _dbContext.FileEntities.Where(x => x.Id!.FileId == filename).ExecuteDeleteAsync(CancellationToken.None) == 0)
             return StatusCode(StatusCodes.Status404NotFound);
 
-        await _dbContext.Set<JsonEntity>().Where(x => x.Id.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
+        await _dbContext.JsonEntities.Where(x => x.Id!.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
 
         return Ok();
     }
@@ -151,7 +175,7 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
-    public ActionResult<IAsyncEnumerable<string>> GetAllFilenames() => Ok(_dbContext.Set<IdEntity>().Select(x => x.FileId));
+    public ActionResult<IAsyncEnumerable<string>> GetAllFilenames() => Ok(_dbContext.IdEntities.Select(x => x.FileId));
 
     [Authorize]
     [HttpPost("GetMetadata")]
@@ -163,7 +187,7 @@ public class ReportController : ControllerBase
     {
         var filenamesWithExtension = filenames.Select(Path.GetFileNameWithoutExtension).ToImmutableArray();
 
-        return Ok(_dbContext.Set<IdEntity>()
+        return Ok(_dbContext.IdEntities
             .Where(x => filenamesWithExtension.Contains(x.FileId))
             .AsEnumerable()
             .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
@@ -181,7 +205,7 @@ public class ReportController : ControllerBase
         if (diff.Ticks < 0 || diff > TimeSpan.FromDays(30))
             return BadRequest();
 
-        return Ok(_dbContext.Set<IdEntity>()
+        return Ok(_dbContext.IdEntities
             .Where(x => x.Created.Ticks > body.DateTime.Ticks)
             .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
     }
@@ -194,8 +218,8 @@ public class ReportController : ControllerBase
     [ResponseCache(Duration = 60 * 60 * 4)]
     public IActionResult SitemapIndex()
     {
-        var count = _dbContext.Set<IdEntity>().Count();
-        var sitemaps = count % 50000;
+        var count = _dbContext.IdEntities.Count();
+        var sitemaps = (count / 50000) + 1;
         
         var sitemap = new SitemapIndex
         {
@@ -216,7 +240,7 @@ public class ReportController : ControllerBase
     {
         var sitemap = new Urlset
         {
-            Url = _dbContext.Set<IdEntity>().Skip(idx * 50000).Take(50000).Select(x => new { x.FileId, x.Created }).Select(x => new Url
+            Url = _dbContext.IdEntities.Skip(idx * 50000).Take(50000).Select(x => new { x.FileId, x.Created }).Select(x => new Url
             {
                 Location = $"{_options.BaseUri}/{x.FileId}",
                 TimeStamp = x.Created,

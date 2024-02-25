@@ -49,7 +49,8 @@ public class Startup
         services.AddSingleton<GZipCompressor>();
         services.AddHostedService<DatabaseMigrator>();
 
-        services.AddDbContextFactory<AppDbContext>(x => x.UseSqlite(_configuration.GetConnectionString("Main")));
+        services.AddDbContextFactory<AppDbContext>(x => x.UseNpgsql(_configuration.GetConnectionString("Main")));
+        services.AddDbContextFactory<OldAppDbContext>(x => x.UseSqlite(_configuration.GetConnectionString("Old")));
 
         services.AddSwaggerGen(opt =>
         {
