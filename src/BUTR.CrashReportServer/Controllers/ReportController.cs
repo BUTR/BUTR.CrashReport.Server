@@ -168,7 +168,7 @@ public class ReportController : ControllerBase
         return Ok(_dbContext.IdEntities
             .Where(x => filenamesWithExtension.Contains(x.FileId))
             .AsEnumerable()
-            .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
+            .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created)));
     }
 
     [Authorize]
@@ -184,8 +184,8 @@ public class ReportController : ControllerBase
             return BadRequest();
 
         return Ok(_dbContext.IdEntities
-            .Where(x => x.Created.Ticks > body.DateTime.Ticks)
-            .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created.ToUniversalTime())));
+            .Where(x => x.Created > body.DateTime)
+            .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created)));
     }
 
     [AllowAnonymous]
@@ -208,6 +208,7 @@ public class ReportController : ControllerBase
         };
         return Ok(sitemap);
     }
+    
     [AllowAnonymous]
     [HttpGet("sitemap_{idx:int}.xml")]
     [Produces("application/xml")]
