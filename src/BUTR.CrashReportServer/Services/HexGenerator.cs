@@ -29,11 +29,11 @@ public sealed class HexGenerator
     {
         var charLength = length * 2;
         var byteLength = length;
-        
+
         Span<char> output = stackalloc char[maxCount * charLength];
         Span<byte> input = stackalloc byte[maxCount * byteLength];
         _random.GetBytes(input);
-        
+
         var unique = new HashSet<string>(maxCount);
         GenerateHexChars(input, output);
         for (var i = 0; i < output.Length; i += charLength)

@@ -111,7 +111,7 @@ public class Startup
             opts.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             opts.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         });
-        
+
         services.AddResponseCaching();
     }
 
@@ -126,7 +126,7 @@ public class Startup
         app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", _appName));
 
         app.UseRouting();
-        
+
         app.UseResponseCaching();
 
         app.UseAuthentication();

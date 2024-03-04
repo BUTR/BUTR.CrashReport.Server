@@ -36,7 +36,7 @@ public class CrashUploadController : ControllerBase
     {
         Converters = { new JsonStringEnumConverter() }
     };
-    
+
     private readonly ILogger _logger;
     private readonly CrashUploadOptions _options;
     private readonly JsonSerializerOptions _jsonSerializerOptions;
@@ -58,7 +58,7 @@ public class CrashUploadController : ControllerBase
         var meter = meterFactory.Create("BUTR.CrashReportServer.Controllers.CrashUploadController", "1.0.0");
 
         _reportVersion = meter.CreateCounter<int>("report-version", unit: "Count");
-        
+
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _jsonSerializerOptions = jsonSerializerOptions.Value ?? throw new ArgumentNullException(nameof(jsonSerializerOptions));
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
@@ -128,8 +128,8 @@ public class CrashUploadController : ControllerBase
         await _dbContext.FileEntities.AddAsync(new FileEntity { FileId = idEntity.FileId, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
         await _dbContext.SaveChangesAsync(ct);
 
-        _reportVersion.Add(1, new[] {new KeyValuePair<string, object?>("Version", crashReport.Version)});
-        
+        _reportVersion.Add(1, new[] { new KeyValuePair<string, object?>("Version", crashReport.Version) });
+
         return Ok($"{_options.BaseUri}/{idEntity.FileId}");
     }
 

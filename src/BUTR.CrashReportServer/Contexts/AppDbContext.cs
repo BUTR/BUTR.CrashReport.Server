@@ -10,7 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<IdEntity> IdEntities { get; set; }
     public DbSet<FileEntity> FileEntities { get; set; }
     public DbSet<JsonEntity> JsonEntities { get; set; }
-    
+
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

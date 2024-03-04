@@ -99,7 +99,7 @@ public class ReportController : ControllerBase
         {
             Response.Headers.ContentEncoding = "gzip";
             return File(await _gZipCompressor.CompressAsync(new MemoryStream(Encoding.UTF8.GetBytes(file.CrashReport)), ct), "application/json; charset=utf-8", true);
-            
+
         }
         return File(new MemoryStream(Encoding.UTF8.GetBytes(file.CrashReport)), "application/json; charset=utf-8", true);
     }
@@ -198,7 +198,7 @@ public class ReportController : ControllerBase
     {
         var count = _dbContext.IdEntities.Count();
         var sitemaps = (count / 50000) + 1;
-        
+
         var sitemap = new SitemapIndex
         {
             Sitemap = Enumerable.Range(0, sitemaps).Select(x => new Sitemap
@@ -208,7 +208,7 @@ public class ReportController : ControllerBase
         };
         return Ok(sitemap);
     }
-    
+
     [AllowAnonymous]
     [HttpGet("sitemap_{idx:int}.xml")]
     [Produces("application/xml")]
