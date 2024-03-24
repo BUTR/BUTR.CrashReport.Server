@@ -17,14 +17,13 @@
 
   <ItemGroup>
     <PackageReference Include="AspNetCore.Authentication.Basic" Version="8.0.0" />
-    <PackageReference Include="BUTR.CrashReport" Version="13.0.0.48" />
-    <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="13.0.0.48" />
-    <PackageReference Include="BUTR.CrashReport.Bannerlord.Source" Version="13.0.0.48" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
-    <PackageReference Include="BUTR.CrashReport.Decompilers" Version="*" IncludeAssets="none" />
+    <PackageReference Include="BUTR.CrashReport.Models" Version="13.0.0.49" />
+    <PackageReference Include="BUTR.CrashReport" Version="13.0.0.49" />
+    <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="13.0.0.49" />
+    <PackageReference Include="BUTR.CrashReport.Bannerlord.Source" Version="13.0.0.49" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Lib.Harmony" Version="*" IncludeAssets="none" />
     <PackageReference Include="Harmony.Extensions" Version="*" IncludeAssets="none" />
     <PackageReference Include="Bannerlord.BUTR.Shared" Version="*" IncludeAssets="none" />
-    <PackageReference Include="BUTR.CrashReport.Models" Version="13.0.0.48" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.2" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.2" />
     <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.0" />

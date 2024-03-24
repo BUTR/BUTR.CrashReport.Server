@@ -63,4 +63,3 @@ jobs:
         token: ${{ secrets.TOKEN_GPR }}
         repository: BUTR/BUTR.CrashReportServer 
         event-type: deploy-docker-image
-        

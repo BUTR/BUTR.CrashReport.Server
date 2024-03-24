@@ -18,6 +18,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 	ProjectSection(SolutionItems) = preProject
 		..\.github\workflows\backend-docker.yml = ..\.github\workflows\backend-docker.yml
 		..\.github\workflows\dotnet-format-daily.yml = ..\.github\workflows\dotnet-format-daily.yml
+		..\.github\workflows\deploy-self-hosted.yml = ..\.github\workflows\deploy-self-hosted.yml
 	EndProjectSection
 EndProject
 Global
