@@ -1,7 +1,6 @@
 ﻿using BUTR.CrashReportServer.Contexts;
 using BUTR.CrashReportServer.Models;
 using BUTR.CrashReportServer.Models.API;
-using BUTR.CrashReportServer.Models.Database;
 using BUTR.CrashReportServer.Models.Sitemaps;
 using BUTR.CrashReportServer.Options;
 using BUTR.CrashReportServer.Services;
@@ -21,7 +20,6 @@ using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Security.Authentication;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,10 +29,7 @@ namespace BUTR.CrashReportServer.Controllers;
 [Route("/report")]
 public class ReportController : ControllerBase
 {
-    public sealed record GetNewCrashReportsBody
-    {
-        public required DateTime DateTime { get; init; }
-    }
+    public sealed record GetNewCrashReportsBody(DateTime DateTime);
 
     private readonly ILogger _logger;
     private readonly ReportOptions _options;
@@ -58,7 +53,7 @@ public class ReportController : ControllerBase
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool ValidateFileName(string? fileName) => fileName?.Length is 6 or 8 or 10 && fileName.All(IsHex);
 
-    private StatusCodeResult? ValidateRequest(ref string filename)
+    private StatusCodeResult? ValidateRequest(string filename)
     {
         if (string.IsNullOrEmpty(filename))
             return StatusCode((int) HttpStatusCode.InternalServerError);
@@ -73,7 +68,7 @@ public class ReportController : ControllerBase
 
     private async Task<IActionResult> GetHtml(string filename, CancellationToken ct)
     {
-        if (ValidateRequest(ref filename) is { } errorResponse)
+        if (ValidateRequest(filename) is { } errorResponse)
             return errorResponse;
 
         if (await _dbContext.FileEntities.FirstOrDefaultAsync(x => x.Id!.FileId == filename, ct) is not { } file)
@@ -82,26 +77,20 @@ public class ReportController : ControllerBase
         if (Request.GetTypedHeaders().AcceptEncoding.Any(x => x.Value.Equals("gzip", StringComparison.InvariantCultureIgnoreCase)))
         {
             Response.Headers.ContentEncoding = "gzip";
-            return File(file.DataCompressed, "text/html; charset=utf-8", true);
+            return File(file.DataCompressed, "text/html; charset=utf-8", false);
         }
-        return File(await _gZipCompressor.DecompressAsync(file.DataCompressed, ct), "text/html; charset=utf-8", true);
+        return File(await _gZipCompressor.DecompressAsync(file.DataCompressed, ct), "text/html; charset=utf-8", false);
     }
 
     private async Task<IActionResult> GetJson(string filename, CancellationToken ct)
     {
-        if (ValidateRequest(ref filename) is { } errorResponse)
+        if (ValidateRequest(filename) is { } errorResponse)
             return errorResponse;
 
         if (await _dbContext.JsonEntities.FirstOrDefaultAsync(x => x.Id!.FileId == filename, ct) is not { } file)
             return StatusCode(StatusCodes.Status404NotFound);
 
-        if (Request.GetTypedHeaders().AcceptEncoding.Any(x => x.Value.Equals("gzip", StringComparison.InvariantCultureIgnoreCase)))
-        {
-            Response.Headers.ContentEncoding = "gzip";
-            return File(await _gZipCompressor.CompressAsync(new MemoryStream(Encoding.UTF8.GetBytes(file.CrashReport)), ct), "application/json; charset=utf-8", true);
-
-        }
-        return File(new MemoryStream(Encoding.UTF8.GetBytes(file.CrashReport)), "application/json; charset=utf-8", true);
+        return Content(file.CrashReport, "application/json; charset=utf-8");
     }
 
     [AllowAnonymous]

@@ -17,7 +17,6 @@
 
   <ItemGroup>
     <PackageReference Include="AspNetCore.Authentication.Basic" Version="8.0.0" />
-    <PackageReference Include="BUTR.CrashReport.Models" Version="13.0.0.49" />
     <PackageReference Include="BUTR.CrashReport" Version="13.0.0.49" />
     <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="13.0.0.49" />
     <PackageReference Include="BUTR.CrashReport.Bannerlord.Source" Version="13.0.0.49" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />

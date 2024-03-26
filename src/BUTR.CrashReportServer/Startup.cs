@@ -17,11 +17,13 @@ using Microsoft.OpenApi.Models;
 
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.ResponseCompression;
 
 namespace BUTR.CrashReportServer;
 
@@ -112,6 +114,22 @@ public class Startup
             opts.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         });
 
+        services.AddResponseCompression(opts =>
+        {
+            opts.EnableForHttps = true;
+            opts.Providers.Add<BrotliCompressionProvider>();
+            opts.Providers.Add<GzipCompressionProvider>();
+        });
+        services.Configure<BrotliCompressionProviderOptions>(options =>
+        {
+            options.Level = CompressionLevel.Fastest;
+        });
+
+        services.Configure<GzipCompressionProviderOptions>(options =>
+        {
+            options.Level = CompressionLevel.SmallestSize;
+        });
+        
         services.AddResponseCaching();
     }
 
@@ -128,6 +146,7 @@ public class Startup
         app.UseRouting();
 
         app.UseResponseCaching();
+        app.UseResponseCompression();
 
         app.UseAuthentication();
         app.UseAuthorization();

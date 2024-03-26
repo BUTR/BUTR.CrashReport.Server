@@ -28,6 +28,7 @@ public sealed class GZipCompressor
         var compressedStream = _streamManager.GetStream();
         await using var zipStream = new GZipStream(compressedStream, CompressionMode.Compress, true);
         await decompressedStream.CopyToAsync(zipStream, ct);
+        compressedStream.Seek(0, SeekOrigin.Begin);
         return compressedStream;
     }
 
@@ -42,6 +43,7 @@ public sealed class GZipCompressor
         var decompressedStream = _streamManager.GetStream();
         await using var zipStream = new GZipStream(compressedStream, CompressionMode.Decompress, true);
         await zipStream.CopyToAsync(decompressedStream, ct);
+        decompressedStream.Seek(0, SeekOrigin.Begin);
         return decompressedStream;
     }
 }
