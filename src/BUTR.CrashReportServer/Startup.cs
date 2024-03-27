@@ -114,6 +114,7 @@ public class Startup
             opts.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         });
 
+        /*
         services.AddResponseCompression(opts =>
         {
             opts.EnableForHttps = true;
@@ -129,6 +130,7 @@ public class Startup
         {
             options.Level = CompressionLevel.SmallestSize;
         });
+        */
         
         services.AddResponseCaching();
     }
@@ -146,7 +148,7 @@ public class Startup
         app.UseRouting();
 
         app.UseResponseCaching();
-        app.UseResponseCompression();
+        //app.UseResponseCompression();
 
         app.UseAuthentication();
         app.UseAuthorization();
