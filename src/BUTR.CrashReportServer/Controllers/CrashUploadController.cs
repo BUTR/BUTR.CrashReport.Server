@@ -20,6 +20,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -123,7 +124,7 @@ public class CrashUploadController : ControllerBase
             return Ok($"{_options.BaseUri}/{idEntity.FileId}");
 
         var json = JsonSerializer.Serialize(crashReport, _jsonSerializerOptionsWeb);
-        var html = CrashReportHtml.AddData(CrashReportHtml.Build(crashReport, logSources), await CompressJson(crashReport));
+        var html = CrashReportHtml.AddData(CrashReportHtml.Build(crashReport, logSources), await CompressJson(json));
 
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(html.AsStream(), ct);
 
@@ -138,15 +139,22 @@ public class CrashUploadController : ControllerBase
         return Ok($"{_options.BaseUri}/{idEntity.FileId}");
     }
     
-    private static async Task<string> CompressJson(CrashReportModel crashReport)
+    private static async Task<string> CompressJson(string jsonModel)
     {
         using var compressedBase64Stream = new MemoryStream();
+
         await using (var base64Stream = new CryptoStream(compressedBase64Stream, new ToBase64Transform(), CryptoStreamMode.Write, true))
         await using (var compressorStream = new GZipStream(base64Stream, CompressionLevel.Optimal, true))
-            await JsonSerializer.SerializeAsync(compressorStream, crashReport, _jsonSerializerOptionsWeb);
-        compressedBase64Stream.Seek(0, SeekOrigin.Begin);
-        using var streamReader = new StreamReader(compressedBase64Stream);
-        return await streamReader.ReadToEndAsync();
+        await using (var streamWriter = new StreamWriter(compressorStream, Encoding.UTF8, 1024, true))
+        {
+            await streamWriter.WriteAsync(jsonModel);
+        }
+
+        using (var streamReader = new StreamReader(compressedBase64Stream))
+        {
+            compressedBase64Stream.Seek(0, SeekOrigin.Begin);
+            return await streamReader.ReadToEndAsync();
+        }
     }
 
     [AllowAnonymous]
