@@ -1,5 +1,4 @@
-﻿using BUTR.CrashReport.Bannerlord;
-using BUTR.CrashReport.Bannerlord.Parser;
+﻿using BUTR.CrashReport.Bannerlord.Parser;
 using BUTR.CrashReport.Models;
 using BUTR.CrashReportServer.Contexts;
 using BUTR.CrashReportServer.Extensions;
@@ -18,6 +17,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -122,7 +122,7 @@ public class CrashUploadController : ControllerBase
             return Ok($"{_options.BaseUri}/{idEntity.FileId}");
 
         var json = JsonSerializer.Serialize(crashReport, _jsonSerializerOptionsWeb);
-        var html = CrashReportHtml.AddData(CrashReportHtml.Build(crashReport, logSources), json);
+        var html = CrashReportHtml.AddData(CrashReportHtml.Build(crashReport, logSources), await CompressJson(crashReport));
 
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(html.AsStream(), ct);
 
@@ -135,6 +135,17 @@ public class CrashUploadController : ControllerBase
         _reportVersion.Add(1, new[] { new KeyValuePair<string, object?>("Version", crashReport.Version) });
 
         return Ok($"{_options.BaseUri}/{idEntity.FileId}");
+    }
+    
+    private static async Task<string> CompressJson(CrashReportModel crashReport)
+    {
+        using var compressedStream = new MemoryStream();
+        await using (var compressorStream = new DeflateStream(compressedStream, CompressionLevel.Fastest, true))
+        {
+            await JsonSerializer.SerializeAsync(compressorStream, crashReport, _jsonSerializerOptionsWeb);
+        }
+        var compressedBytes = compressedStream.ToArray();
+        return Convert.ToBase64String(compressedBytes);
     }
 
     [AllowAnonymous]
