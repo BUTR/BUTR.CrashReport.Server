@@ -112,6 +112,9 @@ public class CrashUploadController : ControllerBase
 
     private async Task<IActionResult> UploadJsonAsync(CancellationToken ct)
     {
+        if (Request.Headers.ContentEncoding.Any(x => x?.Equals("gzip,deflate", StringComparison.OrdinalIgnoreCase) == true))
+            Request.Body = await _gZipCompressor.DecompressAsync(Request.Body, ct);
+        
         if (await HttpContext.Request.ReadFromJsonAsync<CrashReportUploadBody>(_jsonSerializerOptions, ct) is not { CrashReport: { } crashReport, LogSources: { } logSources })
             return StatusCode(StatusCodes.Status500InternalServerError);
 
