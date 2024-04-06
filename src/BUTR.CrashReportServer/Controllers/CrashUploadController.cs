@@ -23,6 +23,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using BUTR.CrashReport.Renderer.Html;
 
 namespace BUTR.CrashReportServer.Controllers;
 
@@ -118,7 +119,7 @@ public class CrashUploadController : ControllerBase
             return Ok($"{_options.BaseUri}/{idEntity.FileId}");
 
         var json = JsonSerializer.Serialize(crashReport, _jsonSerializerOptionsWeb);
-        var html = CrashReportHtmlRenderer.AddData(CrashReportHtmlRenderer.Build(crashReport, logSources), json);
+        var html = CrashReportHtml.AddData(CrashReportHtml.Build(crashReport, logSources), json);
 
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(html.AsStream(), ct);
 

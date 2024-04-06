@@ -4,7 +4,6 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>false</ImplicitUsings>
-    <DefineConstants>$(DefineConstants);BUTRCRASHREPORT_DISABLE;BUTRCRASHREPORT_ENABLE_HTML_RENDERER</DefineConstants>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <InvariantGlobalization>true</InvariantGlobalization>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -19,10 +18,7 @@
     <PackageReference Include="AspNetCore.Authentication.Basic" Version="8.0.0" />
     <PackageReference Include="BUTR.CrashReport" Version="13.0.0.61" />
     <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="13.0.0.61" />
-    <PackageReference Include="BUTR.CrashReport.Bannerlord.Source" Version="13.0.0.61" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
-    <PackageReference Include="Lib.Harmony" Version="*" IncludeAssets="none" />
-    <PackageReference Include="Harmony.Extensions" Version="*" IncludeAssets="none" />
-    <PackageReference Include="Bannerlord.BUTR.Shared" Version="*" IncludeAssets="none" />
+    <PackageReference Include="BUTR.CrashReport.Renderer.Html" Version="13.0.0.61" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.3" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.3" />
     <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.0" />
