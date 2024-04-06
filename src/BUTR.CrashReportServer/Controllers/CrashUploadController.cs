@@ -19,6 +19,7 @@ using System.Diagnostics.Metrics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -139,13 +140,13 @@ public class CrashUploadController : ControllerBase
     
     private static async Task<string> CompressJson(CrashReportModel crashReport)
     {
-        using var compressedStream = new MemoryStream();
-        await using (var compressorStream = new DeflateStream(compressedStream, CompressionLevel.Fastest, true))
-        {
+        using var compressedBase64Stream = new MemoryStream();
+        await using (var base64Stream = new CryptoStream(compressedBase64Stream, new ToBase64Transform(), CryptoStreamMode.Write, true))
+        await using (var compressorStream = new GZipStream(base64Stream, CompressionLevel.Optimal, true))
             await JsonSerializer.SerializeAsync(compressorStream, crashReport, _jsonSerializerOptionsWeb);
-        }
-        var compressedBytes = compressedStream.ToArray();
-        return Convert.ToBase64String(compressedBytes);
+        compressedBase64Stream.Seek(0, SeekOrigin.Begin);
+        using var streamReader = new StreamReader(compressedBase64Stream);
+        return await streamReader.ReadToEndAsync();
     }
 
     [AllowAnonymous]
