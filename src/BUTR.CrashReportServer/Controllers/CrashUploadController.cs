@@ -1,5 +1,6 @@
 ﻿using BUTR.CrashReport.Bannerlord.Parser;
 using BUTR.CrashReport.Models;
+using BUTR.CrashReport.Renderer.Html;
 using BUTR.CrashReportServer.Contexts;
 using BUTR.CrashReportServer.Extensions;
 using BUTR.CrashReportServer.Models.Database;
@@ -25,7 +26,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using BUTR.CrashReport.Renderer.Html;
 
 namespace BUTR.CrashReportServer.Controllers;
 
@@ -116,7 +116,7 @@ public class CrashUploadController : ControllerBase
     {
         if (Request.Headers.ContentEncoding.Any(x => x?.Equals("gzip,deflate", StringComparison.OrdinalIgnoreCase) == true))
             Request.Body = await _gZipCompressor.DecompressAsync(Request.Body, ct);
-        
+
         if (await HttpContext.Request.ReadFromJsonAsync<CrashReportUploadBody>(_jsonSerializerOptions, ct) is not { CrashReport: { } crashReport, LogSources: { } logSources })
             return StatusCode(StatusCodes.Status500InternalServerError);
 
@@ -138,7 +138,7 @@ public class CrashUploadController : ControllerBase
 
         return Ok($"{_options.BaseUri}/{idEntity.FileId}");
     }
-    
+
     private static async Task<string> CompressJson(string jsonModel)
     {
         using var compressedBase64Stream = new MemoryStream();
