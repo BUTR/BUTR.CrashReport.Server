@@ -16,9 +16,9 @@
 
   <ItemGroup>
     <PackageReference Include="AspNetCore.Authentication.Basic" Version="8.0.0" />
-    <PackageReference Include="BUTR.CrashReport" Version="13.0.0.68" />
-    <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="13.0.0.68" />
-    <PackageReference Include="BUTR.CrashReport.Renderer.Html" Version="13.0.0.68" />
+    <PackageReference Include="BUTR.CrashReport" Version="13.0.0.69" />
+    <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="13.0.0.69" />
+    <PackageReference Include="BUTR.CrashReport.Renderer.Html" Version="13.0.0.69" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.3" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.3" />
     <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.0" />
