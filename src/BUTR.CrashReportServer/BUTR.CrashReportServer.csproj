@@ -16,9 +16,9 @@
 
   <ItemGroup>
 
-    <PackageReference Include="BUTR.CrashReport.Models" Version="13.0.0.72" Alias="v13" />
-    <PackageReference Include="BUTR.CrashReport.Renderer.Html" Version="13.0.0.72" Alias="v13" />
-    <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="13.0.0.72" Alias="v13" />
+    <PackageReference Include="BUTR.CrashReport.Models" Version="13.0.0.73" Alias="v13" />
+    <PackageReference Include="BUTR.CrashReport.Renderer.Html" Version="13.0.0.73" Alias="v13" />
+    <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="13.0.0.73" Alias="v13" />
     
     <PackageReference Include="AspNetCore.Authentication.Basic" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.3" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
