@@ -1,4 +1,5 @@
-extern alias v13;
+﻿extern alias v13;
+
 using v13::BUTR.CrashReport.Bannerlord.Parser;
 using v13::BUTR.CrashReport.Models;
 

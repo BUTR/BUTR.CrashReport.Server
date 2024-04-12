@@ -1,4 +1,12 @@
-extern alias v13;
+﻿extern alias v13;
+
+using BUTR.CrashReportServer.Extensions;
+using BUTR.CrashReportServer.Models.Database;
+
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,11 +14,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using BUTR.CrashReportServer.Extensions;
-using BUTR.CrashReportServer.Models.Database;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BUTR.CrashReportServer.Controllers;
 
