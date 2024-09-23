@@ -12,5 +12,5 @@ jobs:
       - name: Code Formatting
         uses: butr/actions-code-format-setup@v1
         with:
-          workspace: "src/BUTR.CrashReportServer.sln"
+          workspace: "src/BUTR.CrashReport.Server.sln"
           github-token: ${{ secrets.GITHUB_TOKEN }}

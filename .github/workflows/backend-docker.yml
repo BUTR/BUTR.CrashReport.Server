@@ -47,7 +47,7 @@ jobs:
       with:
         builder: ${{ steps.buildx.outputs.name }}
         context: ./
-        file: ./src/BUTR.CrashReportServer/Dockerfile
+        file: ./src/BUTR.CrashReport.Server/Dockerfile
         platforms: linux/amd64,linux/arm64
         push: true
         tags: ghcr.io/butr/crashreportserver:latest
@@ -61,5 +61,5 @@ jobs:
       uses: peter-evans/repository-dispatch@v3
       with:
         token: ${{ secrets.TOKEN_GPR }}
-        repository: BUTR/BUTR.CrashReportServer 
+        repository: BUTR/BUTR.CrashReport.Server 
         event-type: deploy-docker-image
