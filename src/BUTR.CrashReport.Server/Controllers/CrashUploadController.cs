@@ -120,6 +120,7 @@ public class CrashUploadController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
+        Request.Body.Seek(0, SeekOrigin.Begin);
         if (version <= 13)
             return await _htmlHandlerV13.UploadHtmlAsync(this, ct);
         if (version == 14)

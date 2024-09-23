@@ -24,7 +24,6 @@ public sealed class GZipCompressor
     }
     public async Task<MemoryStream> CompressAsync(Stream decompressedStream, CancellationToken ct)
     {
-        if (decompressedStream.CanSeek) decompressedStream.Seek(0, SeekOrigin.Begin);
         var compressedStream = _streamManager.GetStream();
         await using var zipStream = new GZipStream(compressedStream, CompressionMode.Compress, true);
         await decompressedStream.CopyToAsync(zipStream, ct);
@@ -38,7 +37,6 @@ public sealed class GZipCompressor
     }
     public async Task<MemoryStream> DecompressAsync(Stream compressedStream, CancellationToken ct)
     {
-        if (compressedStream.CanSeek) compressedStream.Seek(0, SeekOrigin.Begin);
         var decompressedStream = _streamManager.GetStream();
         await using var zipStream = new GZipStream(compressedStream, CompressionMode.Decompress, true);
         await zipStream.CopyToAsync(decompressedStream, ct);

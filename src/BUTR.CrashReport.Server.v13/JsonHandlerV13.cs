@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -78,6 +79,7 @@ public class JsonHandlerV13
         var json = JsonSerializer.Serialize(crashReport, _jsonSerializerOptionsWeb);
         var html = CrashReportHtml.Build(crashReport, logSources);
 
+        controller.Request.Body.Seek(0, SeekOrigin.Begin);
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(html.AsStream(), ct);
 
         idEntity = new IdEntity { FileId = _fileIdGenerator.Generate(ct), CrashReportId = crashReport.Id, Version = crashReport.Version, Created = DateTime.UtcNow, };

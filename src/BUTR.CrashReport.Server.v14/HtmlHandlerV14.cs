@@ -74,6 +74,8 @@ public class HtmlHandlerV14
             return controller.Ok($"{_options.BaseUri}/{idEntity.FileId}");
 
         var json = JsonSerializer.Serialize(crashReportModel, _jsonSerializerOptionsWeb);
+
+        controller.Request.Body.Seek(0, SeekOrigin.Begin);
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(controller.Request.Body, ct);
 
         idEntity = new IdEntity { FileId = _fileIdGenerator.Generate(ct), CrashReportId = crashReportModel!.Id, Version = version, Created = DateTime.UtcNow, };
