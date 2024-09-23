@@ -53,7 +53,7 @@ public class CrashUploadController : ControllerBase
     {
         if (Request.ContentLength is not { } contentLength || contentLength < _options.MinContentLength || contentLength > _options.MaxContentLength)
         {
-            _logger.LogWarning("Content length is invalid: {ContentLength}", Request.ContentLength);
+            _logger.LogWarning("Content length is invalid: {ContentLength}. Min: {MinContentLength}; Max: {MaxContentLength}", Request.ContentLength, _options.MinContentLength, _options.MaxContentLength);
             return Task.FromResult<IActionResult>(StatusCode(StatusCodes.Status500InternalServerError));
         }
 
