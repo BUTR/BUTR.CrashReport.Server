@@ -65,7 +65,10 @@ public class HtmlHandlerV14
         var html = await streamReader.ReadToEndAsync(ct);
         var (valid, version, crashReportModel) = ParseHtml(html);
         if (!valid)
+        {
+            _logger.LogWarning("Invalid HTML");
             return controller.StatusCode(StatusCodes.Status500InternalServerError);
+        }
 
         if (await _dbContext.IdEntities.FirstOrDefaultAsync(x => x.CrashReportId == crashReportModel!.Id, ct) is { } idEntity)
             return controller.Ok($"{_options.BaseUri}/{idEntity.FileId}");

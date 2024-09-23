@@ -53,7 +53,10 @@ public class CrashUploadController : ControllerBase
     public Task<IActionResult> CrashUploadAsync(CancellationToken ct)
     {
         if (Request.ContentLength is not { } contentLength || contentLength < _options.MinContentLength || contentLength > _options.MaxContentLength)
+        {
+            _logger.LogWarning("Content length is invalid: {ContentLength}", Request.ContentLength);
             return Task.FromResult<IActionResult>(StatusCode(StatusCodes.Status500InternalServerError));
+        }
 
         switch (Request.ContentType)
         {
@@ -67,14 +70,18 @@ public class CrashUploadController : ControllerBase
 
     private async Task<IActionResult> UploadJsonAsync(CancellationToken ct)
     {
-        switch (Request.Headers["CrashReportVersion"])
+        var version = Request.Headers["CrashReportVersion"].ToString();
+        switch (version)
         {
             case "13":
                 return await _jsonHandlerV13.UploadJsonAsync(this, ct);
             case "14":
                 return await _jsonHandlerV14.UploadJsonAsync(this, ct);
             default:
+            {
+                _logger.LogWarning("Crash report version is invalid: {CrashReportVersion}", version);
                 return StatusCode(StatusCodes.Status500InternalServerError);
+            }
         }
     }
 
@@ -109,13 +116,17 @@ public class CrashUploadController : ControllerBase
         using var streamReader = new StreamReader(Request.Body);
         var html = await streamReader.ReadToEndAsync(ct);
         if (!TryParseVersion(html, out var version))
+        {
+            _logger.LogWarning("Failed to parse html crash report version");
             return StatusCode(StatusCodes.Status500InternalServerError);
+        }
 
         if (version <= 13)
             return await _htmlHandlerV13.UploadHtmlAsync(this, ct);
         if (version == 14)
             return await _htmlHandlerV14.UploadHtmlAsync(this, ct);
 
+        _logger.LogWarning("Crash report version is invalid: {CrashReportVersion}", version);
         return StatusCode(StatusCodes.Status500InternalServerError);
     }
 }

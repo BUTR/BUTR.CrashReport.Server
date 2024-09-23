@@ -67,7 +67,10 @@ public class JsonHandlerV13
             controller.Request.Body = await _gZipCompressor.DecompressAsync(controller.Request.Body, ct);
 
         if (await controller.HttpContext.Request.ReadFromJsonAsync<CrashReportUploadBodyV13>(_jsonSerializerOptions, ct) is not { CrashReport: { } crashReport, LogSources: { } logSources })
+        {
+            _logger.LogWarning("Failed to read JSON body");
             return controller.StatusCode(StatusCodes.Status500InternalServerError);
+        }
 
         if (await _dbContext.IdEntities.FirstOrDefaultAsync(x => x.CrashReportId == crashReport.Id, ct) is { } idEntity)
             return controller.Ok($"{_options.BaseUri}/{idEntity.FileId}");
