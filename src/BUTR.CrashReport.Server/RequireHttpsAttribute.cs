@@ -33,7 +33,7 @@ public sealed class HttpsProtocolAttribute : Attribute, IAuthorizationFilter, IO
 
         if (tlsHandshakeFeature.Protocol < Protocol)
         {
-            filterContext.Result = new ObjectResult(new TLSError($"TLS minimally supported version: {Protocol}; Got version: {tlsHandshakeFeature.Protocol}"))
+            filterContext.Result = new ObjectResult(new TLSError { Message = $"TLS minimally supported version: {Protocol}; Got version: {tlsHandshakeFeature.Protocol}" })
             {
                 StatusCode = StatusCodes.Status400BadRequest
             };

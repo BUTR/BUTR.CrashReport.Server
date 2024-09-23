@@ -2,6 +2,8 @@
 using BUTR.CrashReport.Server.v13;
 using BUTR.CrashReport.Server.v14;
 
+using HtmlAgilityPack;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,6 +23,7 @@ public class CrashUploadController : ControllerBase
 {
     private readonly ILogger _logger;
     private readonly CrashUploadOptions _options;
+    private readonly HtmlHandlerV13 _htmlHandlerV13;
     private readonly JsonHandlerV13 _jsonHandlerV13;
     private readonly HtmlHandlerV14 _htmlHandlerV14;
     private readonly JsonHandlerV14 _jsonHandlerV14;
@@ -27,12 +31,14 @@ public class CrashUploadController : ControllerBase
     public CrashUploadController(
         ILogger<CrashUploadController> logger,
         IOptionsSnapshot<CrashUploadOptions> options,
+        HtmlHandlerV13 htmlHandlerV13,
         JsonHandlerV13 jsonHandlerV13,
         HtmlHandlerV14 htmlHandlerV14,
         JsonHandlerV14 jsonHandlerV14)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
+        _htmlHandlerV13 = htmlHandlerV13;
         _jsonHandlerV13 = jsonHandlerV13;
         _htmlHandlerV14 = htmlHandlerV14;
         _jsonHandlerV14 = jsonHandlerV14;
@@ -52,22 +58,64 @@ public class CrashUploadController : ControllerBase
         switch (Request.ContentType)
         {
             case "application/json":
-            {
-                switch (Request.Headers["CrashReportVersion"])
-                {
-                    case "13":
-                        return _jsonHandlerV13.UploadJsonAsync(this, ct);
-                    case "14":
-                        return _jsonHandlerV14.UploadJsonAsync(this, ct);
-                    default:
-                        return _jsonHandlerV14.UploadJsonAsync(this, ct);
-                }
-            }
+                return UploadJsonAsync(ct);
             case "text/html":
             default:
+                return UploadHtmlAsync(ct);
+        }
+    }
+
+    private async Task<IActionResult> UploadJsonAsync(CancellationToken ct)
+    {
+        switch (Request.Headers["CrashReportVersion"])
+        {
+            case "13":
+                return await _jsonHandlerV13.UploadJsonAsync(this, ct);
+            case "14":
+                return await _jsonHandlerV14.UploadJsonAsync(this, ct);
+            default:
+                return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    private async Task<IActionResult> UploadHtmlAsync(CancellationToken ct)
+    {
+        static HtmlDocument Create(ref string content)
+        {
+            content = content.Replace("<filename unknown>", "NULL");
+            var document = new HtmlDocument();
+            document.LoadHtml(content);
+            return document;
+        }
+        static bool TryParseVersion(string content, out byte version)
+        {
+            try
             {
-                return _htmlHandlerV14.UploadHtmlAsync(this, ct);
+                var document = Create(ref content);
+
+                var versionStr = document.DocumentNode.SelectSingleNode("descendant::report")?.Attributes?["version"]?.Value;
+                version = byte.TryParse(versionStr, out var v) ? v : (byte) 1;
+                return true;
+            }
+            catch (Exception)
+            {
+                version = 0;
+                return false;
             }
         }
+
+        Request.EnableBuffering();
+
+        using var streamReader = new StreamReader(Request.Body);
+        var html = await streamReader.ReadToEndAsync(ct);
+        if (!TryParseVersion(html, out var version))
+            return StatusCode(StatusCodes.Status500InternalServerError);
+
+        if (version <= 13)
+            return await _htmlHandlerV13.UploadHtmlAsync(this, ct);
+        if (version == 14)
+            return await _htmlHandlerV14.UploadHtmlAsync(this, ct);
+
+        return StatusCode(StatusCodes.Status500InternalServerError);
     }
 }

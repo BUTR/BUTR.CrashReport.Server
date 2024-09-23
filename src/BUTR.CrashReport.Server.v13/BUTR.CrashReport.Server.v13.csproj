@@ -23,6 +23,7 @@
   <ItemGroup>
     <PackageReference Include="BUTR.CrashReport.Models" Version="13.0.0.82" />
     <PackageReference Include="BUTR.CrashReport.Renderer.Html" Version="13.0.0.82" />
+    <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="13.0.0.82" />
   </ItemGroup>
   
   <ItemGroup>

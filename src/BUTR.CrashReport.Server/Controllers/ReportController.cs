@@ -157,7 +157,13 @@ public class ReportController : ControllerBase
         return Ok(_dbContext.IdEntities
             .Where(x => filenamesWithExtension.Contains(x.FileId))
             .AsEnumerable()
-            .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created)));
+            .Select(x => new FileMetadata
+            {
+                File = x.FileId,
+                Id = x.CrashReportId,
+                Version = x.Version,
+                Date = x.Created,
+            }));
     }
 
     [Authorize]
@@ -174,7 +180,13 @@ public class ReportController : ControllerBase
 
         return Ok(_dbContext.IdEntities
             .Where(x => x.Created > body.DateTime)
-            .Select(x => new FileMetadata(x.FileId, x.CrashReportId, x.Version, x.Created)));
+            .Select(x => new FileMetadata
+            {
+                File = x.FileId,
+                Id = x.CrashReportId,
+                Version = x.Version,
+                Date = x.Created,
+            }));
     }
 
     [AllowAnonymous]

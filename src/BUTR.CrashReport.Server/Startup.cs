@@ -49,9 +49,10 @@ public class Startup
 
         services.AddTransient<RandomNumberGenerator>(_ => RandomNumberGenerator.Create());
         services.AddScoped<FileIdGenerator>();
+        services.AddScoped<HtmlHandlerV13>();
         services.AddScoped<JsonHandlerV13>();
-        services.AddScoped<JsonHandlerV14>();
         services.AddScoped<HtmlHandlerV14>();
+        services.AddScoped<JsonHandlerV14>();
         services.AddSingleton<HexGenerator>();
         services.AddSingleton<RecyclableMemoryStreamManager>();
         services.AddSingleton<GZipCompressor>();
