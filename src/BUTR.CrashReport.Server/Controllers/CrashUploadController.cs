@@ -46,8 +46,7 @@ public class CrashUploadController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("crash-upload.py")]
-    //[Consumes(typeof(CrashReportUploadBodyV13), "application/json", "text/html")]
-    //[Consumes(typeof(CrashReportUploadBodyV14), "application/json", "text/html")]
+    [Consumes("application/json", "text/html")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "text/plain")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     public Task<IActionResult> CrashUploadAsync(CancellationToken ct)
