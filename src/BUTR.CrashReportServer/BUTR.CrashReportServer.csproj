@@ -15,15 +15,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-
-    <PackageReference Include="BUTR.CrashReport.Models" Version="13.0.0.82" Alias="v13" />
-    <PackageReference Include="BUTR.CrashReport.Renderer.Html" Version="13.0.0.82" Alias="v13" />
-    <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="13.0.0.82" Alias="v13" />
-    
-    <PackageReference Include="AspNetCore.Authentication.Basic" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.8" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.8" />
-    <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
@@ -39,6 +32,12 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BUTR.CrashReportServer.Base\BUTR.CrashReportServer.Base.csproj" />
+    <ProjectReference Include="..\BUTR.CrashReportServer.v13\BUTR.CrashReportServer.v13.csproj" />
+    <ProjectReference Include="..\BUTR.CrashReportServer.v14\BUTR.CrashReportServer.v14.csproj" />
   </ItemGroup>
 
   <Target Name="_ResolveCopyLocalNuGetPkgXmls" AfterTargets="ResolveReferences">

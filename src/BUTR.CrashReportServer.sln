@@ -21,6 +21,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 		..\.github\workflows\deploy-self-hosted.yml = ..\.github\workflows\deploy-self-hosted.yml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BUTR.CrashReportServer.v13", "BUTR.CrashReportServer.v13\BUTR.CrashReportServer.v13.csproj", "{5CFD15FB-578C-455D-8BED-3462C333B5FE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BUTR.CrashReportServer.v14", "BUTR.CrashReportServer.v14\BUTR.CrashReportServer.v14.csproj", "{0448DA45-5D06-4D7B-9F0D-37BCB26BD82F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BUTR.CrashReportServer.Base", "BUTR.CrashReportServer.Base\BUTR.CrashReportServer.Base.csproj", "{1EB86E89-9CEE-465D-8F0F-69BB0D06A3DA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,6 +37,18 @@ Global
 		{EB9235FA-522C-4484-8093-0310489EEB5C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EB9235FA-522C-4484-8093-0310489EEB5C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EB9235FA-522C-4484-8093-0310489EEB5C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5CFD15FB-578C-455D-8BED-3462C333B5FE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5CFD15FB-578C-455D-8BED-3462C333B5FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5CFD15FB-578C-455D-8BED-3462C333B5FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5CFD15FB-578C-455D-8BED-3462C333B5FE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0448DA45-5D06-4D7B-9F0D-37BCB26BD82F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0448DA45-5D06-4D7B-9F0D-37BCB26BD82F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0448DA45-5D06-4D7B-9F0D-37BCB26BD82F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0448DA45-5D06-4D7B-9F0D-37BCB26BD82F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1EB86E89-9CEE-465D-8F0F-69BB0D06A3DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1EB86E89-9CEE-465D-8F0F-69BB0D06A3DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1EB86E89-9CEE-465D-8F0F-69BB0D06A3DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1EB86E89-9CEE-465D-8F0F-69BB0D06A3DA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -39,6 +57,9 @@ Global
 		{EB9235FA-522C-4484-8093-0310489EEB5C} = {4391569A-BC79-4D40-B7F0-4D447C5DC727}
 		{4391569A-BC79-4D40-B7F0-4D447C5DC727} = {B256B262-B6DE-4DD3-83B9-6C6DDB81EAEA}
 		{0BF3BA56-CA2B-4EB2-9D3E-D3686A4FD75C} = {B256B262-B6DE-4DD3-83B9-6C6DDB81EAEA}
+		{5CFD15FB-578C-455D-8BED-3462C333B5FE} = {4391569A-BC79-4D40-B7F0-4D447C5DC727}
+		{0448DA45-5D06-4D7B-9F0D-37BCB26BD82F} = {4391569A-BC79-4D40-B7F0-4D447C5DC727}
+		{1EB86E89-9CEE-465D-8F0F-69BB0D06A3DA} = {4391569A-BC79-4D40-B7F0-4D447C5DC727}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {65844B96-7084-406A-805C-9106387278F4}

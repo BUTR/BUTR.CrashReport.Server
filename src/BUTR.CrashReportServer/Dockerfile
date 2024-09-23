@@ -2,11 +2,17 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-jammy AS restore
 ARG TARGETARCH
 WORKDIR /build
 
+COPY ["src/BUTR.CrashReportServer.Base/BUTR.CrashReportServer.Base.csproj", "src/BUTR.CrashReportServer.Base/"]
+COPY ["src/BUTR.CrashReportServer.v13/BUTR.CrashReportServer.v13.csproj", "src/BUTR.CrashReportServer.v13/"]
+COPY ["src/BUTR.CrashReportServer.v14/BUTR.CrashReportServer.v14.csproj", "src/BUTR.CrashReportServer.v14/"]
 COPY ["src/BUTR.CrashReportServer/BUTR.CrashReportServer.csproj", "src/BUTR.CrashReportServer/"]
 COPY ["src/nuget.config", "src/"]
 
 RUN dotnet restore "src/BUTR.CrashReportServer/BUTR.CrashReportServer.csproj" -a $TARGETARCH;
 
+COPY ["src/BUTR.CrashReportServer.Base/", "src/BUTR.CrashReportServer.Base/"]
+COPY ["src/BUTR.CrashReportServer.v13/", "src/BUTR.CrashReportServer.v13/"]
+COPY ["src/BUTR.CrashReportServer.v14/", "src/BUTR.CrashReportServer.v14/"]
 COPY ["src/BUTR.CrashReportServer/", "src/BUTR.CrashReportServer/"]
 
 #COPY [".git/HEAD", ".git/HEAD"]

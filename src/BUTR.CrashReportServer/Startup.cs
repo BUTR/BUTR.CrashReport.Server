@@ -3,6 +3,8 @@
 using BUTR.CrashReportServer.Contexts;
 using BUTR.CrashReportServer.Options;
 using BUTR.CrashReportServer.Services;
+using BUTR.CrashReportServer.v13;
+using BUTR.CrashReportServer.v14;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -46,6 +48,10 @@ public class Startup
         services.Configure<ReportOptions>(_configuration.GetSection("Report"));
 
         services.AddTransient<RandomNumberGenerator>(_ => RandomNumberGenerator.Create());
+        services.AddScoped<FileIdGenerator>();
+        services.AddScoped<JsonHandlerV13>();
+        services.AddScoped<JsonHandlerV14>();
+        services.AddScoped<HtmlHandlerV14>();
         services.AddSingleton<HexGenerator>();
         services.AddSingleton<RecyclableMemoryStreamManager>();
         services.AddSingleton<GZipCompressor>();

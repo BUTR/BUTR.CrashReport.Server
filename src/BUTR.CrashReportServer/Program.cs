@@ -1,5 +1,4 @@
-﻿using BUTR.CrashReportServer.Contexts;
-using BUTR.CrashReportServer.Extensions;
+﻿using BUTR.CrashReportServer.Options;
 
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +24,8 @@ namespace BUTR.CrashReportServer;
 
 public static class Program
 {
+    private const string OltpSectionName = "Oltp";
+
     public static async Task Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
@@ -60,9 +61,15 @@ public static class Program
             {
                 hostOptions.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
             });
-            if (ctx.Configuration.GetSection("Oltp") is { } oltpSection)
+
+            var openTelemetry = services.AddOpenTelemetry()
+                .WithMetrics()
+                .WithTracing()
+                .WithLogging();
+
+            if (ctx.Configuration.GetSection(OltpSectionName) is { } oltpSection)
             {
-                var openTelemetry = services.AddOpenTelemetry()
+                openTelemetry
                     .ConfigureResource(builder =>
                     {
                         builder.AddDetector(new ContainerResourceDetector());
@@ -75,9 +82,9 @@ public static class Program
                         builder.AddTelemetrySdk();
                     });
 
-                if (oltpSection.GetValue<string?>("MetricsEndpoint") is { } metricsEndpoint)
+                if (oltpSection.GetValue<string?>(nameof(OtlpOptions.MetricsEndpoint)) is { } metricsEndpoint)
                 {
-                    var metricsProtocol = oltpSection.GetValue<OtlpExportProtocol>("MetricsProtocol");
+                    var metricsProtocol = oltpSection.GetValue<OtlpExportProtocol>(nameof(OtlpOptions.MetricsProtocol));
                     openTelemetry.WithMetrics(builder => builder
                         .AddMeter("BUTR.CrashReportServer.Controllers.CrashUploadController")
                         .AddProcessInstrumentation()
@@ -93,9 +100,9 @@ public static class Program
                         }));
                 }
 
-                if (oltpSection.GetValue<string?>("TracingEndpoint") is { } tracingEndpoint)
+                if (oltpSection.GetValue<string?>(nameof(OtlpOptions.TracingEndpoint)) is { } tracingEndpoint)
                 {
-                    var tracingProtocol = oltpSection.GetValue<OtlpExportProtocol>("TracingProtocol");
+                    var tracingProtocol = oltpSection.GetValue<OtlpExportProtocol>(nameof(OtlpOptions.TracingProtocol));
                     openTelemetry.WithTracing(builder => builder
                         .AddEntityFrameworkCoreInstrumentation(instrumentationOptions =>
                         {
@@ -133,12 +140,12 @@ public static class Program
         }, writeToProviders: true)
         .ConfigureLogging((ctx, builder) =>
         {
-            var oltpSection = ctx.Configuration.GetSection("Oltp");
+            var oltpSection = ctx.Configuration.GetSection(OltpSectionName);
             if (oltpSection == null!) return;
 
-            var loggingEndpoint = oltpSection.GetValue<string>("LoggingEndpoint");
+            var loggingEndpoint = oltpSection.GetValue<string>(nameof(OtlpOptions.LoggingEndpoint));
             if (loggingEndpoint is null) return;
-            var loggingProtocol = oltpSection.GetValue<OtlpExportProtocol>("LoggingProtocol");
+            var loggingProtocol = oltpSection.GetValue<OtlpExportProtocol>(nameof(OtlpOptions.LoggingProtocol));
 
             builder.AddOpenTelemetry(o =>
             {
