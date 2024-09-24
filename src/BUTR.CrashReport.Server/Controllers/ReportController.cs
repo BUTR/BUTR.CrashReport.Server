@@ -220,7 +220,7 @@ public class ReportController : ControllerBase
     {
         var sitemap = new Urlset
         {
-            Url = _dbContext.IdEntities.Skip(idx * 50000).Take(50000).Select(x => new { x.FileId, x.Created }).Select(x => new Url
+            Url = _dbContext.IdEntities.OrderBy(x => x.Created).Skip(idx * 50000).Take(50000).Select(x => new { x.FileId, x.Created }).Select(x => new Url
             {
                 Location = $"{_options.BaseUri}/{x.FileId}",
                 TimeStamp = x.Created,
