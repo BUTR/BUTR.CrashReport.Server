@@ -56,12 +56,12 @@ public class ReportController : ControllerBase
     private StatusCodeResult? ValidateRequest(string filename)
     {
         if (string.IsNullOrEmpty(filename))
-            return StatusCode((int) HttpStatusCode.InternalServerError);
+            return StatusCode((int) HttpStatusCode.BadRequest);
 
         filename = Path.GetFileNameWithoutExtension(filename);
 
         if (!ValidateFileName(filename))
-            return StatusCode((int) HttpStatusCode.InternalServerError);
+            return StatusCode((int) HttpStatusCode.BadRequest);
 
         return null;
     }
@@ -96,6 +96,7 @@ public class ReportController : ControllerBase
     [AllowAnonymous]
     [HttpGet("{filename}.html")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "text/html")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     public Task<IActionResult> ReportHtml(string filename, CancellationToken ct) => GetHtml(filename, ct);
@@ -103,6 +104,7 @@ public class ReportController : ControllerBase
     [AllowAnonymous]
     [HttpGet("{filename}.json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     public Task<IActionResult> ReportJson(string filename, CancellationToken ct) => GetJson(filename, ct);
@@ -110,6 +112,7 @@ public class ReportController : ControllerBase
     [AllowAnonymous]
     [HttpGet("{filename}")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     public Task<IActionResult> ReportBasedOnAccept(string filename, CancellationToken ct) => Request.Headers.Accept.FirstOrDefault(x => x is "text/html" or "application/json") switch
