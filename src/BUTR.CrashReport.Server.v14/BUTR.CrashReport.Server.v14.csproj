@@ -21,9 +21,9 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="BUTR.CrashReport.Models" Version="14.0.0.86" />
-    <PackageReference Include="BUTR.CrashReport.Renderer.Html" Version="14.0.0.86" />
-    <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="14.0.0.86" />
+    <PackageReference Include="BUTR.CrashReport.Models" Version="14.0.0.87" />
+    <PackageReference Include="BUTR.CrashReport.Renderer.Html" Version="14.0.0.87" />
+    <PackageReference Include="BUTR.CrashReport.Bannerlord.Parser" Version="14.0.0.87" />
   </ItemGroup>
   
   <ItemGroup>
