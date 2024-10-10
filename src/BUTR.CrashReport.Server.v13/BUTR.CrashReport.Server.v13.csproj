@@ -27,7 +27,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <ProjectReference Include="..\BUTR.CrashReport.Server.Base\BUTR.CrashReport.Server.Base.csproj" PrivateAssets="all" IncludeAssets="compile" Private="false" />
+    <ProjectReference Include="..\BUTR.CrashReport.Server.Persistence\BUTR.CrashReport.Server.Persistence.csproj" PrivateAssets="all" IncludeAssets="compile" Private="false" />
   </ItemGroup>
 
 </Project>

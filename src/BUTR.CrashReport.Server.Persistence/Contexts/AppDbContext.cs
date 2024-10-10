@@ -7,8 +7,9 @@ namespace BUTR.CrashReport.Server.Contexts;
 
 public class AppDbContext : DbContext
 {
+    public DbSet<ReportEntity> ReportEntities { get; set; }
     public DbSet<IdEntity> IdEntities { get; set; }
-    public DbSet<FileEntity> FileEntities { get; set; }
+    public DbSet<HtmlEntity> HtmlEntities { get; set; }
     public DbSet<JsonEntity> JsonEntities { get; set; }
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
@@ -17,8 +18,9 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.ApplyConfiguration(new ReportEntityConfiguration());
         modelBuilder.ApplyConfiguration(new IdEntityConfiguration());
-        modelBuilder.ApplyConfiguration(new FileEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new HtmlEntityConfiguration());
         modelBuilder.ApplyConfiguration(new JsonEntityConfiguration());
     }
 }

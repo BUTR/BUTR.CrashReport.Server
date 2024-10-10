@@ -66,12 +66,12 @@ public class ReportController : ControllerBase
         return null;
     }
 
-    private async Task<IActionResult> GetHtml(string filename, CancellationToken ct)
+    private async Task<IActionResult> GetHtml(byte tenant, string filename, CancellationToken ct)
     {
         if (ValidateRequest(filename) is { } errorResponse)
             return errorResponse;
 
-        if (await _dbContext.FileEntities.FirstOrDefaultAsync(x => x.Id!.FileId == filename, ct) is not { } file)
+        if (await _dbContext.HtmlEntities.FirstOrDefaultAsync(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename, ct) is not { } file)
             return StatusCode(StatusCodes.Status404NotFound);
 
         if (Request.GetTypedHeaders().AcceptEncoding.Any(x => x.Value.Equals("gzip", StringComparison.InvariantCultureIgnoreCase)))
@@ -82,15 +82,15 @@ public class ReportController : ControllerBase
         return File(await _gZipCompressor.DecompressAsync(file.DataCompressed, ct), "text/html; charset=utf-8", false);
     }
 
-    private async Task<IActionResult> GetJson(string filename, CancellationToken ct)
+    private async Task<IActionResult> GetJson(byte tenant, string filename, CancellationToken ct)
     {
         if (ValidateRequest(filename) is { } errorResponse)
             return errorResponse;
 
-        if (await _dbContext.JsonEntities.FirstOrDefaultAsync(x => x.Id!.FileId == filename, ct) is not { } file)
+        if (await _dbContext.JsonEntities.FirstOrDefaultAsync(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename, ct) is not { } file)
             return StatusCode(StatusCodes.Status404NotFound);
 
-        return Content(file.CrashReport, "application/json; charset=utf-8");
+        return Content(file.Json, "application/json; charset=utf-8");
     }
 
     [AllowAnonymous]
@@ -99,7 +99,15 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-    public Task<IActionResult> ReportHtml(string filename, CancellationToken ct) => GetHtml(filename, ct);
+    public Task<IActionResult> ReportHtml(string filename, CancellationToken ct) => GetHtml(0, filename, ct);
+
+    [AllowAnonymous]
+    [HttpGet("{tenant:int}/{filename}.html")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "text/html")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+    public Task<IActionResult> ReportHtml(byte tenant, string filename, CancellationToken ct) => GetHtml(tenant, filename, ct);
 
     [AllowAnonymous]
     [HttpGet("{filename}.json")]
@@ -107,7 +115,15 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-    public Task<IActionResult> ReportJson(string filename, CancellationToken ct) => GetJson(filename, ct);
+    public Task<IActionResult> ReportJson(string filename, CancellationToken ct) => GetJson(0, filename, ct);
+
+    [AllowAnonymous]
+    [HttpGet("{tenant:int}/{filename}.json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+    public Task<IActionResult> ReportJson(byte tenant, string filename, CancellationToken ct) => GetJson(tenant, filename, ct);
 
     [AllowAnonymous]
     [HttpGet("{filename}")]
@@ -117,52 +133,65 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     public Task<IActionResult> ReportBasedOnAccept(string filename, CancellationToken ct) => Request.Headers.Accept.FirstOrDefault(x => x is "text/html" or "application/json") switch
     {
-        "text/html" => GetHtml(filename, ct),
-        "application/json" => GetJson(filename, ct),
-        _ => GetHtml(filename, ct),
+        "text/html" => GetHtml(0, filename, ct),
+        "application/json" => GetJson(0, filename, ct),
+        _ => GetHtml(0, filename, ct),
+    };
+
+    [AllowAnonymous]
+    [HttpGet("{tenant:int}/{filename}")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+    public Task<IActionResult> ReportBasedOnAccept(byte tenant, string filename, CancellationToken ct) => Request.Headers.Accept.FirstOrDefault(x => x is "text/html" or "application/json") switch
+    {
+        "text/html" => GetHtml(tenant, filename, ct),
+        "application/json" => GetJson(tenant, filename, ct),
+        _ => GetHtml(tenant, filename, ct),
     };
 
     [Authorize]
-    [HttpDelete("Delete/{filename}")]
+    [HttpDelete("Delete/{tenant:int}/{filename}")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
-    public async Task<IActionResult> Delete(string filename)
+    public async Task<IActionResult> Delete(byte tenant, string filename)
     {
-        if (await _dbContext.FileEntities.Where(x => x.Id!.FileId == filename).ExecuteDeleteAsync(CancellationToken.None) == 0)
-            return StatusCode(StatusCodes.Status404NotFound);
-
-        await _dbContext.JsonEntities.Where(x => x.Id!.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
+        await _dbContext.HtmlEntities.Where(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
+        await _dbContext.JsonEntities.Where(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
+        await _dbContext.IdEntities.Where(x => x.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
+        await _dbContext.ReportEntities.Where(x => x.Id!.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
 
         return Ok();
     }
 
     [Authorize]
-    [HttpGet("GetAllFilenames")]
+    [HttpGet("{tenant:int}/GetAllFilenames")]
     [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
-    public ActionResult<IAsyncEnumerable<string>> GetAllFilenames() => Ok(_dbContext.IdEntities.Select(x => x.FileId));
+    public ActionResult<IAsyncEnumerable<string>> GetAllFilenames(byte tenant) => Ok(_dbContext.ReportEntities.Where(x => x.Tenant == tenant).Select(x => x.Id!.FileId));
 
     [Authorize]
-    [HttpPost("GetMetadata")]
+    [HttpPost("{tenant:int}/GetMetadata")]
     [ProducesResponseType(typeof(FileMetadata[]), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
-    public ActionResult<IEnumerable<FileMetadata>> GetFilenameDates(ICollection<string> filenames, CancellationToken ct)
+    public ActionResult<IEnumerable<FileMetadata>> GetFilenameDates(byte tenant, ICollection<string> filenames, CancellationToken ct)
     {
         var filenamesWithExtension = filenames.Select(Path.GetFileNameWithoutExtension).ToImmutableArray();
 
-        return Ok(_dbContext.IdEntities
-            .Where(x => filenamesWithExtension.Contains(x.FileId))
-            .AsEnumerable()
+        return Ok(_dbContext.ReportEntities
+            .Where(x => x.Tenant == tenant)
+            .Where(x => filenamesWithExtension.Contains(x.Id!.FileId))
             .Select(x => new FileMetadata
             {
-                File = x.FileId,
+                File = x.Id!.FileId,
                 Id = x.CrashReportId,
                 Version = x.Version,
                 Date = x.Created,
@@ -170,18 +199,44 @@ public class ReportController : ControllerBase
     }
 
     [Authorize]
-    [HttpPost("GetNewCrashReports")]
+    [HttpPost("{tenant:int}/GetNewCrashReports")]
     [ProducesResponseType(typeof(FileMetadata[]), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
-    public ActionResult<IEnumerable<FileMetadata>> GetNewCrashReportsDates([FromBody] GetNewCrashReportsBody body, CancellationToken ct)
+    public ActionResult<IEnumerable<FileMetadata>> GetNewCrashReportsDates(byte tenant, [FromBody] GetNewCrashReportsBody body, CancellationToken ct)
+    {
+        var diff = DateTime.UtcNow - body.DateTime;
+        if (diff.Ticks < 0 || diff > TimeSpan.FromDays(30))
+            return BadRequest();
+
+        return Ok(_dbContext.ReportEntities
+            .Where(x => x.Tenant == tenant)
+            .Where(x => x.Created > body.DateTime)
+            .Select(x => new FileMetadata
+            {
+                File = x.Id!.FileId,
+                Id = x.CrashReportId,
+                Version = x.Version,
+                Date = x.Created,
+            }));
+    }
+
+    /*
+    [Authorize]
+    [HttpPost("{tenant:int}/GetNewCrashReports")]
+    [ProducesResponseType(typeof(FileMetadata[]), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+    [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
+    [HttpsProtocol(Protocol = SslProtocols.Tls13)]
+    public ActionResult<IEnumerable<FileMetadata>> RegenerateHtmlCrashReports(byte tenant, [FromBody] GetNewCrashReportsBody body, CancellationToken ct)
     {
         var diff = DateTime.UtcNow - body.DateTime;
         if (diff.Ticks < 0 || diff > TimeSpan.FromDays(30))
             return BadRequest();
 
         return Ok(_dbContext.IdEntities
+            .Where(x => x.Tenant == tenant)
             .Where(x => x.Created > body.DateTime)
             .Select(x => new FileMetadata
             {
@@ -191,6 +246,7 @@ public class ReportController : ControllerBase
                 Date = x.Created,
             }));
     }
+    */
 
     [AllowAnonymous]
     [HttpGet("sitemap_index.xml")]
@@ -200,17 +256,23 @@ public class ReportController : ControllerBase
     [ResponseCache(Duration = 60 * 60 * 4)]
     public IActionResult SitemapIndex()
     {
-        var count = _dbContext.IdEntities.Count();
-        var sitemaps = (count / 50000) + 1;
-
-        var sitemap = new SitemapIndex
+        var sitemaps = new List<Sitemap>();
+        foreach (var tenant in _dbContext.ReportEntities.Select(x => x.Tenant).Distinct())
         {
-            Sitemap = Enumerable.Range(0, sitemaps).Select(x => new Sitemap
+            var count = _dbContext.ReportEntities.Count(x => x.Tenant == tenant);
+            var sitemapsCount = (count / 50000) + 1;
+
+            sitemaps.AddRange(Enumerable.Range(0, sitemapsCount).Select(x => new Sitemap
             {
-                Location = $"{_options.BaseUri}/sitemap_{x}.xml",
-            }).ToList(),
-        };
-        return Ok(sitemap);
+                Location = tenant == 0
+                    ? $"{_options.BaseUri}/sitemap_{x}.xml"
+                    : $"{_options.BaseUri}/sitemap_{tenant}_{x}.xml",
+            }));
+        }
+        return Ok(new SitemapIndex
+        {
+            Sitemap = sitemaps,
+        });
     }
 
     [AllowAnonymous]
@@ -223,9 +285,30 @@ public class ReportController : ControllerBase
     {
         var sitemap = new Urlset
         {
-            Url = _dbContext.IdEntities.OrderBy(x => x.Created).Skip(idx * 50000).Take(50000).Select(x => new { x.FileId, x.Created }).Select(x => new Url
+            Url = _dbContext.ReportEntities.Where(x => x.Tenant == 0).OrderBy(x => x.Created).Skip(idx * 50000).Take(50000).Select(x => new { x.Id!.FileId, x.Created }).Select(x => new Url
             {
                 Location = $"{_options.BaseUri}/{x.FileId}",
+                TimeStamp = x.Created,
+                Priority = 0.5,
+                ChangeFrequency = ChangeFrequency.Never,
+            }).ToList(),
+        };
+        return Ok(sitemap);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("sitemap_{tenant:int}_{idx:int}.xml")]
+    [Produces("application/xml")]
+    [ProducesResponseType(typeof(Urlset), StatusCodes.Status200OK, "application/xml")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+xml")]
+    [ResponseCache(Duration = 60 * 60 * 4)]
+    public IActionResult Sitemap(byte tenant, int idx)
+    {
+        var sitemap = new Urlset
+        {
+            Url = _dbContext.ReportEntities.Where(x => x.Tenant == tenant).OrderBy(x => x.Created).Skip(idx * 50000).Take(50000).Select(x => new { x.Id!.FileId, x.Created }).Select(x => new Url
+            {
+                Location = $"{_options.BaseUri}/{tenant}/{x.FileId}",
                 TimeStamp = x.Created,
                 Priority = 0.5,
                 ChangeFrequency = ChangeFrequency.Never,

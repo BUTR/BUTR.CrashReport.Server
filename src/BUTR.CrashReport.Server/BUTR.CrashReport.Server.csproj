@@ -31,12 +31,12 @@
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
     <PackageReference Include="Serilog.Sinks.Async" Version="2.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.1" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BUTR.CrashReport.Server.Base\BUTR.CrashReport.Server.Base.csproj" />
+    <ProjectReference Include="..\BUTR.CrashReport.Server.Persistence\BUTR.CrashReport.Server.Persistence.csproj" />
     <ProjectReference Include="..\BUTR.CrashReport.Server.v13\BUTR.CrashReport.Server.v13.csproj" />
     <ProjectReference Include="..\BUTR.CrashReport.Server.v14\BUTR.CrashReport.Server.v14.csproj" />
   </ItemGroup>
@@ -50,7 +50,7 @@
   
   <Target Condition="$(DOTNET_RUNNING_IN_CONTAINER) != 'true'" Name="GenerateOpenApi" AfterTargets="PostBuildEvent">
     <Exec Command="dotnet new tool-manifest --force" />
-    <Exec Command="dotnet tool install --local Swashbuckle.AspNetCore.Cli --version 6.8.0" />
+    <Exec Command="dotnet tool install --local Swashbuckle.AspNetCore.Cli --version 6.8.1" />
     <Exec Command="dotnet swagger tofile --output ../swagger.json $(OutputPath)$(AssemblyName).dll v1" />
   </Target>
 

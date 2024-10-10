@@ -2,7 +2,7 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-jammy AS restore
 ARG TARGETARCH
 WORKDIR /build
 
-COPY ["src/BUTR.CrashReport.Server.Base/BUTR.CrashReport.Server.Base.csproj", "src/BUTR.CrashReport.Server.Base/"]
+COPY ["src/BUTR.CrashReport.Server.Persistence/BUTR.CrashReport.Server.Persistence.csproj", "src/BUTR.CrashReport.Server.Persistence/"]
 COPY ["src/BUTR.CrashReport.Server.v13/BUTR.CrashReport.Server.v13.csproj", "src/BUTR.CrashReport.Server.v13/"]
 COPY ["src/BUTR.CrashReport.Server.v14/BUTR.CrashReport.Server.v14.csproj", "src/BUTR.CrashReport.Server.v14/"]
 COPY ["src/BUTR.CrashReport.Server/BUTR.CrashReport.Server.csproj", "src/BUTR.CrashReport.Server/"]
@@ -10,7 +10,7 @@ COPY ["src/nuget.config", "src/"]
 
 RUN dotnet restore "src/BUTR.CrashReport.Server/BUTR.CrashReport.Server.csproj" -a $TARGETARCH;
 
-COPY ["src/BUTR.CrashReport.Server.Base/", "src/BUTR.CrashReport.Server.Base/"]
+COPY ["src/BUTR.CrashReport.Server.Persistence/", "src/BUTR.CrashReport.Server.Persistence/"]
 COPY ["src/BUTR.CrashReport.Server.v13/", "src/BUTR.CrashReport.Server.v13/"]
 COPY ["src/BUTR.CrashReport.Server.v14/", "src/BUTR.CrashReport.Server.v14/"]
 COPY ["src/BUTR.CrashReport.Server/", "src/BUTR.CrashReport.Server/"]

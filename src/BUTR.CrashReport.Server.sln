@@ -25,7 +25,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BUTR.CrashReport.Server.v13
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BUTR.CrashReport.Server.v14", "BUTR.CrashReport.Server.v14\BUTR.CrashReport.Server.v14.csproj", "{0448DA45-5D06-4D7B-9F0D-37BCB26BD82F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BUTR.CrashReport.Server.Base", "BUTR.CrashReport.Server.Base\BUTR.CrashReport.Server.Base.csproj", "{1EB86E89-9CEE-465D-8F0F-69BB0D06A3DA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BUTR.CrashReport.Server.Persistence", "BUTR.CrashReport.Server.Persistence\BUTR.CrashReport.Server.Persistence.csproj", "{1EB86E89-9CEE-465D-8F0F-69BB0D06A3DA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

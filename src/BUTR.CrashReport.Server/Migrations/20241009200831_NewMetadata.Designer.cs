@@ -3,6 +3,7 @@ using System;
 using BUTR.CrashReport.Server.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BUTR.CrashReport.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241009200831_NewMetadata")]
+    partial class NewMetadata
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -34,9 +37,9 @@ namespace BUTR.CrashReport.Server.Migrations
                         .HasColumnName("data_compressed");
 
                     b.HasKey("CrashReportId")
-                        .HasName("html_entity_pkey");
+                        .HasName("file_entity_pkey");
 
-                    b.ToTable("html_entity", (string)null);
+                    b.ToTable("file_entity", (string)null);
                 });
 
             modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.IdEntity", b =>
@@ -50,13 +53,11 @@ namespace BUTR.CrashReport.Server.Migrations
                         .HasColumnType("text")
                         .HasColumnName("file_id");
 
-                    b.HasKey("CrashReportId")
-                        .HasName("id_entity_pkey");
+                    b.HasKey("CrashReportId");
 
-                    b.HasIndex("FileId")
-                        .HasDatabaseName("id_entity_file_id_idx");
+                    b.HasIndex("FileId");
 
-                    b.ToTable("id_entity", (string)null);
+                    b.ToTable("id_test_entity", (string)null);
                 });
 
             modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.JsonEntity", b =>
@@ -94,10 +95,9 @@ namespace BUTR.CrashReport.Server.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("version");
 
-                    b.HasKey("CrashReportId")
-                        .HasName("report_entity_pkey");
+                    b.HasKey("CrashReportId");
 
-                    b.ToTable("report_entity", (string)null);
+                    b.ToTable("id_entity", (string)null);
                 });
 
             modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.HtmlEntity", b =>
@@ -106,8 +106,7 @@ namespace BUTR.CrashReport.Server.Migrations
                         .WithOne("Html")
                         .HasForeignKey("BUTR.CrashReport.Server.Models.Database.HtmlEntity", "CrashReportId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("report_entity_html_entity_fkey");
+                        .IsRequired();
 
                     b.Navigation("Report");
                 });
@@ -118,22 +117,19 @@ namespace BUTR.CrashReport.Server.Migrations
                         .WithOne("Id")
                         .HasForeignKey("BUTR.CrashReport.Server.Models.Database.IdEntity", "CrashReportId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("html_entity_id_entity_fkey");
+                        .IsRequired();
 
                     b.HasOne("BUTR.CrashReport.Server.Models.Database.JsonEntity", null)
                         .WithOne("Id")
                         .HasForeignKey("BUTR.CrashReport.Server.Models.Database.IdEntity", "CrashReportId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("json_entity_id_entity_fkey");
+                        .IsRequired();
 
                     b.HasOne("BUTR.CrashReport.Server.Models.Database.ReportEntity", "Report")
                         .WithOne("Id")
                         .HasForeignKey("BUTR.CrashReport.Server.Models.Database.IdEntity", "CrashReportId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("report_entity_id_entity_fkey");
+                        .IsRequired();
 
                     b.Navigation("Report");
                 });
@@ -144,8 +140,7 @@ namespace BUTR.CrashReport.Server.Migrations
                         .WithOne("Json")
                         .HasForeignKey("BUTR.CrashReport.Server.Models.Database.JsonEntity", "CrashReportId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("report_entity_json_entity_fkey");
+                        .IsRequired();
 
                     b.Navigation("Report");
                 });

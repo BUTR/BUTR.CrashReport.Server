@@ -58,7 +58,7 @@ public class Startup
         services.AddSingleton<GZipCompressor>();
         //services.AddHostedService<DatabaseMigrator>();
 
-        services.AddDbContextFactory<AppDbContext>(x => x.UseNpgsql(_configuration.GetConnectionString("Main")));
+        services.AddDbContextFactory<AppDbContext>(x => x.UseNpgsql(_configuration.GetConnectionString("Main"), y => y.MigrationsAssembly("BUTR.CrashReport.Server")));
 
         services.AddSwaggerGen(opt =>
         {

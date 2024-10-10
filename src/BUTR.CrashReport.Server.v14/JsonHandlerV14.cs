@@ -37,6 +37,7 @@ public class JsonHandlerV14
     private CrashUploadOptions _options;
     private JsonSerializerOptions _jsonSerializerOptions;
 
+    private readonly Counter<int> _reportTenant;
     private readonly Counter<int> _reportVersion;
 
     public JsonHandlerV14(
@@ -49,6 +50,7 @@ public class JsonHandlerV14
         IMeterFactory meterFactory)
     {
         var meter = meterFactory.Create("BUTR.CrashReportServer.Controllers.CrashUploadController", "1.0.0");
+        _reportTenant = meter.CreateCounter<int>("report-tenant", unit: "Count");
         _reportVersion = meter.CreateCounter<int>("report-version", unit: "Count");
 
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -64,8 +66,12 @@ public class JsonHandlerV14
 
     public async Task<IActionResult> UploadJsonAsync(ControllerBase controller, CancellationToken ct)
     {
+        var tenant = byte.TryParse(controller.Request.Headers["Tenant"].ToString(), out var tenantId) ? tenantId : (byte) 0;
+
         if (controller.Request.Headers.ContentEncoding.Any(x => x?.Equals("gzip,deflate", StringComparison.OrdinalIgnoreCase) == true))
             controller.Request.Body = await _gZipCompressor.DecompressAsync(controller.Request.Body, ct);
+        else
+            controller.Request.EnableBuffering();
 
         if (await controller.HttpContext.Request.ReadFromJsonAsync<CrashReportUploadBodyV14>(_jsonSerializerOptions, ct) is not { CrashReport: { } crashReport, LogSources: { } logSources })
         {
@@ -82,14 +88,21 @@ public class JsonHandlerV14
         controller.Request.Body.Seek(0, SeekOrigin.Begin);
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(html.AsStream(), ct);
 
-        idEntity = new IdEntity { FileId = _fileIdGenerator.Generate(ct), CrashReportId = crashReport.Id, Version = crashReport.Version, Created = DateTime.UtcNow, };
-        await _dbContext.IdEntities.AddAsync(idEntity, ct);
-        await _dbContext.JsonEntities.AddAsync(new JsonEntity { FileId = idEntity.FileId, CrashReport = json, }, ct);
-        await _dbContext.FileEntities.AddAsync(new FileEntity { FileId = idEntity.FileId, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
+        await _dbContext.ReportEntities.AddAsync(new ReportEntity
+        {
+            CrashReportId = crashReport.Id,
+            Tenant = tenant,
+            Version = crashReport.Version,
+            Created = DateTime.UtcNow,
+        }, ct);
+        await _dbContext.IdEntities.AddAsync(idEntity = new IdEntity { CrashReportId = crashReport.Id, FileId = _fileIdGenerator.Generate(ct), }, ct);
+        await _dbContext.HtmlEntities.AddAsync(new HtmlEntity { CrashReportId = crashReport.Id, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
+        await _dbContext.JsonEntities.AddAsync(new JsonEntity { CrashReportId = crashReport.Id, Json = json, }, ct);
         await _dbContext.SaveChangesAsync(ct);
 
+        _reportTenant.Add(1, new[] { new KeyValuePair<string, object?>("Tenant", tenant) });
         _reportVersion.Add(1, new[] { new KeyValuePair<string, object?>("Version", crashReport.Version) });
 
-        return controller.Ok($"{_options.BaseUri}/{idEntity.FileId}");
+        return controller.Ok(tenant == 0 ? $"{_options.BaseUri}/{idEntity.FileId}" : $"{_options.BaseUri}/{tenant}/{idEntity.FileId}");
     }
 }
