@@ -66,7 +66,7 @@ public class JsonHandlerV14
 
     public async Task<IActionResult> UploadJsonAsync(ControllerBase controller, CancellationToken ct)
     {
-        var tenant = byte.TryParse(controller.Request.Headers["Tenant"].ToString(), out var tenantId) ? tenantId : (byte) 0;
+        var tenant = byte.TryParse(controller.Request.Headers["Tenant"].ToString(), out var tenantId) ? tenantId : (byte) 1;
 
         if (controller.Request.Headers.ContentEncoding.Any(x => x?.Equals("gzip,deflate", StringComparison.OrdinalIgnoreCase) == true))
             controller.Request.Body = await _gZipCompressor.DecompressAsync(controller.Request.Body, ct);
@@ -103,6 +103,6 @@ public class JsonHandlerV14
         _reportTenant.Add(1, new[] { new KeyValuePair<string, object?>("Tenant", tenant) });
         _reportVersion.Add(1, new[] { new KeyValuePair<string, object?>("Version", crashReport.Version) });
 
-        return controller.Ok(tenant == 0 ? $"{_options.BaseUri}/{idEntity.FileId}" : $"{_options.BaseUri}/{tenant}/{idEntity.FileId}");
+        return controller.Ok(tenant == 1 ? $"{_options.BaseUri}/{idEntity.FileId}" : $"{_options.BaseUri}/{tenant}/{idEntity.FileId}");
     }
 }

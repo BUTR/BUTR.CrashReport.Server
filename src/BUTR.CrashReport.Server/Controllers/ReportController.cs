@@ -99,7 +99,7 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-    public Task<IActionResult> ReportHtml(string filename, CancellationToken ct) => GetHtml(0, filename, ct);
+    public Task<IActionResult> ReportHtml(string filename, CancellationToken ct) => GetHtml(1, filename, ct);
 
     [AllowAnonymous]
     [HttpGet("{tenant:int}/{filename}.html")]
@@ -115,7 +115,7 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-    public Task<IActionResult> ReportJson(string filename, CancellationToken ct) => GetJson(0, filename, ct);
+    public Task<IActionResult> ReportJson(string filename, CancellationToken ct) => GetJson(1, filename, ct);
 
     [AllowAnonymous]
     [HttpGet("{tenant:int}/{filename}.json")]
@@ -133,9 +133,9 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     public Task<IActionResult> ReportBasedOnAccept(string filename, CancellationToken ct) => Request.Headers.Accept.FirstOrDefault(x => x is "text/html" or "application/json") switch
     {
-        "text/html" => GetHtml(0, filename, ct),
-        "application/json" => GetJson(0, filename, ct),
-        _ => GetHtml(0, filename, ct),
+        "text/html" => GetHtml(1, filename, ct),
+        "application/json" => GetJson(1, filename, ct),
+        _ => GetHtml(1, filename, ct),
     };
 
     [AllowAnonymous]
@@ -264,7 +264,7 @@ public class ReportController : ControllerBase
 
             sitemaps.AddRange(Enumerable.Range(0, sitemapsCount).Select(x => new Sitemap
             {
-                Location = tenant == 0
+                Location = tenant == 1
                     ? $"{_options.BaseUri}/sitemap_{x}.xml"
                     : $"{_options.BaseUri}/sitemap_{tenant}_{x}.xml",
             }));
@@ -285,7 +285,7 @@ public class ReportController : ControllerBase
     {
         var sitemap = new Urlset
         {
-            Url = _dbContext.ReportEntities.Where(x => x.Tenant == 0).OrderBy(x => x.Created).Skip(idx * 50000).Take(50000).Select(x => new { x.Id!.FileId, x.Created }).Select(x => new Url
+            Url = _dbContext.ReportEntities.Where(x => x.Tenant == 1).OrderBy(x => x.Created).Skip(idx * 50000).Take(50000).Select(x => new { x.Id!.FileId, x.Created }).Select(x => new Url
             {
                 Location = $"{_options.BaseUri}/{x.FileId}",
                 TimeStamp = x.Created,

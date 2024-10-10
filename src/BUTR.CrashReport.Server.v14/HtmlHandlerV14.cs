@@ -63,7 +63,7 @@ public class HtmlHandlerV14
     {
         controller.Request.EnableBuffering();
 
-        var tenant = byte.TryParse(controller.Request.Headers["Tenant"].ToString(), out var tenantId) ? tenantId : (byte) 0;
+        var tenant = byte.TryParse(controller.Request.Headers["Tenant"].ToString(), out var tenantId) ? tenantId : (byte) 1;
 
         using var streamReader = new StreamReader(controller.Request.Body);
         var html = await streamReader.ReadToEndAsync(ct);
@@ -97,7 +97,7 @@ public class HtmlHandlerV14
         _reportTenant.Add(1, new[] { new KeyValuePair<string, object?>("Tenant", tenant) });
         _reportVersion.Add(1, new[] { new KeyValuePair<string, object?>("Version", version) });
 
-        return controller.Ok(tenant == 0 ? $"{_options.BaseUri}/{idEntity.FileId}" : $"{_options.BaseUri}/{tenant}/{idEntity.FileId}");
+        return controller.Ok(tenant == 1 ? $"{_options.BaseUri}/{idEntity.FileId}" : $"{_options.BaseUri}/{tenant}/{idEntity.FileId}");
     }
 
     private static (bool isValid, byte version, CrashReportModel? crashReportModel) ParseHtml(string html)
