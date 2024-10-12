@@ -68,7 +68,7 @@ public class JsonHandlerV13
     {
         var tenant = byte.TryParse(controller.Request.Headers["Tenant"].ToString(), out var tenantId) ? tenantId : (byte) 1;
 
-        if (controller.Request.Headers.ContentEncoding.Any(x => x?.Equals("gzip,deflate", StringComparison.OrdinalIgnoreCase) == true))
+        if (controller.Request.Headers.ContentEncoding is ["gzip", "deflate"] or ["gzip,deflate"] or ["gzip, deflate"])
             controller.Request.Body = await _gZipCompressor.DecompressAsync(controller.Request.Body, ct);
         else
             controller.Request.EnableBuffering();
