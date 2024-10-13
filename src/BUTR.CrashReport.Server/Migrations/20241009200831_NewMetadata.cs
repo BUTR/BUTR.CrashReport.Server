@@ -19,7 +19,7 @@ namespace BUTR.CrashReport.Server.Migrations
             migrationBuilder.Sql("""
                                  UPDATE file_entity fe
                                  SET crash_report_id = (SELECT ie.crash_report_id FROM id_entity ie WHERE ie.file_id = fe.file_id)
-                                 """); 
+                                 """);
             migrationBuilder.DropForeignKey(
                 name: "FK_file_entity_id_entity_file_id",
                 table: "file_entity");
@@ -29,8 +29,8 @@ namespace BUTR.CrashReport.Server.Migrations
                                  WHERE  T1.ctid    < T2.ctid
                                     AND  T1.crash_report_id    = T2.crash_report_id;
                                  """);
-            
-            
+
+
             migrationBuilder.AddColumn<Guid>(
                 name: "crash_report_id",
                 table: "json_entity",
@@ -75,8 +75,8 @@ namespace BUTR.CrashReport.Server.Migrations
                 name: "json_entity_pkey",
                 table: "json_entity",
                 column: "crash_report_id");
-            
-            
+
+
             migrationBuilder.CreateTable(
                 name: "id_test_entity",
                 columns: table => new
@@ -125,7 +125,7 @@ namespace BUTR.CrashReport.Server.Migrations
                 nullable: false,
                 defaultValue: (byte) 0);
 
-            
+
             migrationBuilder.AddForeignKey(
                 name: "report_entity_html_entity_fkey",
                 table: "file_entity",
@@ -140,8 +140,8 @@ namespace BUTR.CrashReport.Server.Migrations
                 principalTable: "id_entity",
                 principalColumn: "crash_report_id",
                 onDelete: ReferentialAction.Cascade);
-            
-            
+
+
             migrationBuilder.AddForeignKey(
                 name: "html_entity_id_entity_fkey",
                 table: "id_test_entity",
@@ -163,7 +163,7 @@ namespace BUTR.CrashReport.Server.Migrations
                 principalTable: "id_entity",
                 principalColumn: "crash_report_id",
                 onDelete: ReferentialAction.Cascade);
-            
+
 
             migrationBuilder.RenameTable(
                 name: "id_entity",

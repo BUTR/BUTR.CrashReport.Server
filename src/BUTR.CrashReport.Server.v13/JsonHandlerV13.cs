@@ -72,7 +72,7 @@ public class JsonHandlerV13
             controller.Request.Body = await _gZipCompressor.DecompressAsync(controller.Request.Body, ct);
         else
             controller.Request.EnableBuffering();
-        
+
         if (await controller.HttpContext.Request.ReadFromJsonAsync<CrashReportUploadBodyV13>(_jsonSerializerOptions, ct) is not { CrashReport: { } crashReport, LogSources: { } logSources })
         {
             _logger.LogWarning("Failed to read JSON body");
