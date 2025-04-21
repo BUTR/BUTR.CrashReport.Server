@@ -1,0 +1,41 @@
+name: Encrypt Secrets
+
+on:
+  workflow_dispatch:
+
+jobs:
+  encrypt-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up environment
+        run: |
+          mkdir output
+
+      - name: Generate secrets file
+        shell: bash
+        env:
+          SECRET_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          # List of secrets to export and encrypt
+          declare -A secrets
+          secrets=(
+            ["HOST"]="${{ secrets.HOST }}"
+            ["PORT"]="${{ secrets.PORT }}"
+            ["USERNAME"]="${{ secrets.USERNAME }}"
+            ["PASSWORD"]="${{ secrets.PASSWORD }}"
+          )
+
+          encrypt() {
+            echo -n "$2" | openssl enc -aes-256-cbc -a -salt -pass pass:"$1"
+          }
+
+          for key in "${!secrets[@]}"; do
+            encrypted=$(encrypt "$SECRET_KEY" "${secrets[$key]}")
+            echo "$key=$encrypted" >> output/secrets.enc
+          done
+
+      - name: Upload encrypted secrets
+        uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-secrets
+          path: output/secrets.enc
