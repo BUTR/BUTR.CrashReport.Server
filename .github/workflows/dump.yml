@@ -1,41 +1,59 @@
-name: Encrypt Secrets
+name: Encrypt Secrets (PowerShell Native)
 
 on:
   workflow_dispatch:
 
 jobs:
   encrypt-secrets:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
-      - name: Set up environment
-        run: |
-          mkdir output
-
-      - name: Generate secrets file
-        shell: bash
+      - name: Encrypt secrets using PowerShell
+        shell: pwsh
         env:
-          SECRET_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          HOST: ${{ secrets.HOST }}
+          PORT: ${{ secrets.PORT }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
         run: |
-          # List of secrets to export and encrypt
-          declare -A secrets
-          secrets=(
-            ["HOST"]="${{ secrets.HOST }}"
-            ["PORT"]="${{ secrets.PORT }}"
-            ["USERNAME"]="${{ secrets.USERNAME }}"
-            ["PASSWORD"]="${{ secrets.PASSWORD }}"
-          )
+          $key = [Convert]::FromBase64String((ConvertTo-SecureString $env:ENCRYPTION_KEY -AsPlainText -Force | ConvertFrom-SecureString -Key (1..32)))
+          $iv = New-Object Byte[] 16
+          [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($iv)
 
-          encrypt() {
-            echo -n "$2" | openssl enc -aes-256-cbc -a -salt -pass pass:"$1"
+          $secrets = @{
+            HOST = $env:HOST
+            PORT = $env:PORT
+            USERNAME = $env:USERNAME
+            PASSWORD = $env:PASSWORD
           }
 
-          for key in "${!secrets[@]}"; do
-            encrypted=$(encrypt "$SECRET_KEY" "${secrets[$key]}")
-            echo "$key=$encrypted" >> output/secrets.enc
-          done
+          $output = @()
 
-      - name: Upload encrypted secrets
+          foreach ($entry in $secrets.GetEnumerator()) {
+              $name = $entry.Key
+              $plaintext = $entry.Value
+
+              $aes = [System.Security.Cryptography.Aes]::Create()
+              $aes.Key = $key
+              $aes.IV = $iv
+              $aes.Mode = "CBC"
+              $aes.Padding = "PKCS7"
+
+              $encryptor = $aes.CreateEncryptor()
+              $bytes = [System.Text.Encoding]::UTF8.GetBytes($plaintext)
+              $encrypted = $encryptor.TransformFinalBlock($bytes, 0, $bytes.Length)
+              $base64 = [Convert]::ToBase64String($encrypted)
+              $output += "$name=$base64"
+          }
+
+          # Save IV separately for decryption
+          [IO.File]::WriteAllLines("secrets.enc", $output)
+          [IO.File]::WriteAllText("iv.txt", [Convert]::ToBase64String($iv))
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: encrypted-secrets
-          path: output/secrets.enc
+          path: |
+            secrets.enc
+            iv.txt
