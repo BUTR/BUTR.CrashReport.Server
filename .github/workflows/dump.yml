@@ -11,10 +11,7 @@ jobs:
         shell: pwsh
         env:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-          HOST: ${{ secrets.HOST }}
-          PORT: ${{ secrets.PORT }}
-          USERNAME: ${{ secrets.USERNAME }}
-          PASSWORD: ${{ secrets.PASSWORD }}
+          TOKEN_GPR: ${{ secrets.TOKEN_GPR }}
         run: |
           $sha256 = [System.Security.Cryptography.SHA256]::Create()
           $key = $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($env:ENCRYPTION_KEY))
@@ -22,10 +19,7 @@ jobs:
           [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($iv)
 
           $secrets = @{
-            HOST = $env:HOST
-            PORT = $env:PORT
-            USERNAME = $env:USERNAME
-            PASSWORD = $env:PASSWORD
+            TOKEN_GPR = $env:TOKEN_GPR
           }
 
           $output = @()
