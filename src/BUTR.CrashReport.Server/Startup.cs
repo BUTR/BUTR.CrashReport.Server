@@ -13,7 +13,9 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.IO;
 using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
@@ -42,10 +44,22 @@ public class Startup
 
     public void ConfigureServices(IServiceCollection services)
     {
+        var assemblyName = typeof(Startup).Assembly.GetName();
+        var userAgent = $"{assemblyName.Name ?? "ERROR"} v{assemblyName.Version?.ToString() ?? "ERROR"} (github.com/BUTR)";
+
         services.Configure<AuthOptions>(_configuration.GetSection("Auth"));
         services.Configure<StorageOptions>(_configuration.GetSection("Storage"));
         services.Configure<CrashUploadOptions>(_configuration.GetSection("CrashUpload"));
         services.Configure<ReportOptions>(_configuration.GetSection("Report"));
+        services.Configure<UptimeKumaOptions>(_configuration.GetSection("UptimeKuma"));
+
+        services.AddHttpClient<IHealthCheckPublisher, UptimeKumaHealthCheckPublisher>().ConfigureHttpClient((sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<UptimeKumaOptions>>().Value;
+
+            client.BaseAddress = new Uri(options.Endpoint);
+            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+        });
 
         services.AddTransient<RandomNumberGenerator>(_ => RandomNumberGenerator.Create());
         services.AddScoped<FileIdGenerator>();
@@ -140,6 +154,9 @@ public class Startup
         */
 
         services.AddResponseCaching();
+
+        services.AddHealthChecks()
+            .AddNpgSql(_configuration.GetConnectionString("Main")!);
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -151,6 +168,8 @@ public class Startup
 
         app.UseSwagger();
         app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", _appName));
+
+        app.UseHealthChecks("/healthz");
 
         app.UseRouting();
 
