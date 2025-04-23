@@ -57,7 +57,8 @@ public class Startup
         {
             var options = sp.GetRequiredService<IOptions<UptimeKumaOptions>>().Value;
 
-            client.BaseAddress = new Uri(options.Endpoint);
+            if (Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var uri))
+                client.BaseAddress = uri;
             client.DefaultRequestHeaders.Add("User-Agent", userAgent);
         });
 
