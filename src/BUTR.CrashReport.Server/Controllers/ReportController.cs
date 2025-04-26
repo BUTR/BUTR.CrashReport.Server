@@ -257,7 +257,7 @@ public class ReportController : ControllerBase
     public IActionResult SitemapIndex()
     {
         var sitemaps = new List<Sitemap>();
-        
+
         var tenants = _dbContext.ReportEntities.Select(x => x.Tenant).Distinct().ToList();
         foreach (var tenant in tenants)
         {
