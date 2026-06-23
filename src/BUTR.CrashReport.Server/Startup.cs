@@ -8,7 +8,6 @@ using BUTR.CrashReport.Server.v14;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -128,7 +127,7 @@ public class Startup
             opts.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
             opts.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
-        }).AddXmlSerializerFormatters().AddXmlDataContractSerializerFormatters();
+        });
         services.Configure<JsonSerializerOptions>(opts =>
         {
             opts.PropertyNameCaseInsensitive = true;

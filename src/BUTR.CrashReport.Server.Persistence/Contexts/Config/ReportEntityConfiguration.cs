@@ -13,6 +13,7 @@ public class ReportEntityConfiguration : BaseEntityConfiguration<ReportEntity>
         builder.Property(x => x.Tenant).HasColumnName("tenant");
         builder.Property(x => x.Version).HasColumnName("version");
         builder.Property(x => x.Created).HasColumnName("created");
+        builder.Property(x => x.DeleteTokenHash).HasColumnName("delete_token_hash");
         builder.ToTable("report_entity").HasKey(x => x.CrashReportId).HasName("report_entity_pkey");
 
         builder.HasOne(x => x.Id)

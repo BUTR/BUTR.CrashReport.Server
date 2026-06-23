@@ -1,16 +1,12 @@
 ﻿using BUTR.CrashReport.Server.Contexts;
 using BUTR.CrashReport.Server.Models;
 using BUTR.CrashReport.Server.Models.API;
-using BUTR.CrashReport.Server.Models.Sitemaps;
-using BUTR.CrashReport.Server.Options;
 using BUTR.CrashReport.Server.Services;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 using System;
 using System.Collections.Generic;
@@ -20,6 +16,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,15 +28,11 @@ public class ReportController : ControllerBase
 {
     public sealed record GetNewCrashReportsBody(DateTime DateTime);
 
-    private readonly ILogger _logger;
-    private readonly ReportOptions _options;
     private readonly AppDbContext _dbContext;
     private readonly GZipCompressor _gZipCompressor;
 
-    public ReportController(ILogger<ReportController> logger, IOptionsSnapshot<ReportOptions> options, AppDbContext dbContext, GZipCompressor gZipCompressor)
+    public ReportController(AppDbContext dbContext, GZipCompressor gZipCompressor)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
     }
@@ -131,12 +124,8 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-    public Task<IActionResult> ReportBasedOnAccept(string filename, CancellationToken ct) => Request.Headers.Accept.FirstOrDefault(x => x is "text/html" or "application/json") switch
-    {
-        "text/html" => GetHtml(1, filename, ct),
-        "application/json" => GetJson(1, filename, ct),
-        _ => GetHtml(1, filename, ct),
-    };
+    public Task<IActionResult> ReportBasedOnAccept(string filename, [FromQuery(Name = DeleteTokenGenerator.QueryName)] string? delete, CancellationToken ct) =>
+        ReportBasedOnAccept(1, filename, delete, ct);
 
     [AllowAnonymous]
     [HttpGet("{tenant:int}/{filename}")]
@@ -144,12 +133,19 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-    public Task<IActionResult> ReportBasedOnAccept(byte tenant, string filename, CancellationToken ct) => Request.Headers.Accept.FirstOrDefault(x => x is "text/html" or "application/json") switch
+    public Task<IActionResult> ReportBasedOnAccept(byte tenant, string filename, [FromQuery(Name = DeleteTokenGenerator.QueryName)] string? delete, CancellationToken ct)
     {
-        "text/html" => GetHtml(tenant, filename, ct),
-        "application/json" => GetJson(tenant, filename, ct),
-        _ => GetHtml(tenant, filename, ct),
-    };
+        // A delete token on the report URL means the user followed the X-Delete-Url link - show a confirmation page instead of the report.
+        if (!string.IsNullOrEmpty(delete))
+            return DeleteConfirmation(tenant, filename, delete, ct);
+
+        return Request.Headers.Accept.FirstOrDefault(x => x is "text/html" or "application/json") switch
+        {
+            "text/html" => GetHtml(tenant, filename, ct),
+            "application/json" => GetJson(tenant, filename, ct),
+            _ => GetHtml(tenant, filename, ct),
+        };
+    }
 
     [Authorize]
     [HttpDelete("Delete/{tenant:int}/{filename}")]
@@ -160,10 +156,7 @@ public class ReportController : ControllerBase
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
     public async Task<IActionResult> Delete(byte tenant, string filename)
     {
-        await _dbContext.HtmlEntities.Where(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
-        await _dbContext.JsonEntities.Where(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
-        await _dbContext.IdEntities.Where(x => x.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
-        await _dbContext.ReportEntities.Where(x => x.Id!.FileId == filename).ExecuteDeleteAsync(CancellationToken.None);
+        await DeleteReportAsync(tenant, filename, CancellationToken.None);
 
         return Ok();
     }
@@ -249,73 +242,115 @@ public class ReportController : ControllerBase
     */
 
     [AllowAnonymous]
-    [HttpGet("sitemap_index.xml")]
-    [Produces("application/xml")]
-    [ProducesResponseType(typeof(Urlset), StatusCodes.Status200OK, "application/xml")]
-    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+xml")]
-    [ResponseCache(Duration = 60 * 60 * 4)]
-    public IActionResult SitemapIndex()
-    {
-        var sitemaps = new List<Sitemap>();
-
-        var tenants = _dbContext.ReportEntities.Select(x => x.Tenant).Distinct().ToList();
-        foreach (var tenant in tenants)
-        {
-            var count = _dbContext.ReportEntities.Count(x => x.Tenant == tenant);
-            var sitemapsCount = (count / 50000) + 1;
-
-            sitemaps.AddRange(Enumerable.Range(0, sitemapsCount).Select(x => new Sitemap
-            {
-                Location = tenant == 1
-                    ? $"{_options.BaseUri}/sitemap_{x}.xml"
-                    : $"{_options.BaseUri}/sitemap_{tenant}_{x}.xml",
-            }));
-        }
-        return Ok(new SitemapIndex
-        {
-            Sitemap = sitemaps,
-        });
-    }
+    [HttpDelete("{filename}")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+    public Task<IActionResult> DeleteWithToken(string filename, [FromQuery(Name = DeleteTokenGenerator.QueryName)] string? delete, CancellationToken ct) =>
+        DeleteWithToken(1, filename, delete, ct);
 
     [AllowAnonymous]
-    [HttpGet("sitemap_{idx:int}.xml")]
-    [Produces("application/xml")]
-    [ProducesResponseType(typeof(Urlset), StatusCodes.Status200OK, "application/xml")]
-    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+xml")]
-    [ResponseCache(Duration = 60 * 60 * 4)]
-    public IActionResult Sitemap(int idx)
+    [HttpDelete("{tenant:int}/{filename}")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status403Forbidden, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+    public async Task<IActionResult> DeleteWithToken(byte tenant, string filename, [FromQuery(Name = DeleteTokenGenerator.QueryName)] string? delete, CancellationToken ct)
     {
-        var sitemap = new Urlset
-        {
-            Url = _dbContext.ReportEntities.Where(x => x.Tenant == 1).OrderBy(x => x.Created).Skip(idx * 50000).Take(50000).Select(x => new { x.Id!.FileId, x.Created }).Select(x => new Url
-            {
-                Location = $"{_options.BaseUri}/{x.FileId}",
-                TimeStamp = x.Created,
-                Priority = 0.5,
-                ChangeFrequency = ChangeFrequency.Never,
-            }).ToList(),
-        };
-        return Ok(sitemap);
+        if (ValidateRequest(filename) is { } errorResponse)
+            return errorResponse;
+        if (string.IsNullOrEmpty(delete))
+            return StatusCode(StatusCodes.Status400BadRequest);
+
+        filename = Path.GetFileNameWithoutExtension(filename);
+
+        if (await GetTokenHashAsync(tenant, filename, ct) is not { } storedHash)
+            return StatusCode(StatusCodes.Status404NotFound);
+        if (!CryptographicOperations.FixedTimeEquals(storedHash, DeleteTokenGenerator.ComputeHash(delete)))
+            return StatusCode(StatusCodes.Status403Forbidden);
+
+        await DeleteReportAsync(tenant, filename, ct);
+
+        return Ok();
     }
 
-    [AllowAnonymous]
-    [HttpGet("sitemap_{tenant:int}_{idx:int}.xml")]
-    [Produces("application/xml")]
-    [ProducesResponseType(typeof(Urlset), StatusCodes.Status200OK, "application/xml")]
-    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+xml")]
-    [ResponseCache(Duration = 60 * 60 * 4)]
-    public IActionResult Sitemap(byte tenant, int idx)
+    // Deletes a report and all its associated data atomically, so a failure mid-way cannot leave a partially-deleted report.
+    private async Task DeleteReportAsync(byte tenant, string filename, CancellationToken ct)
     {
-        var sitemap = new Urlset
-        {
-            Url = _dbContext.ReportEntities.Where(x => x.Tenant == tenant).OrderBy(x => x.Created).Skip(idx * 50000).Take(50000).Select(x => new { x.Id!.FileId, x.Created }).Select(x => new Url
-            {
-                Location = $"{_options.BaseUri}/{tenant}/{x.FileId}",
-                TimeStamp = x.Created,
-                Priority = 0.5,
-                ChangeFrequency = ChangeFrequency.Never,
-            }).ToList(),
-        };
-        return Ok(sitemap);
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
+        await _dbContext.HtmlEntities.Where(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(ct);
+        await _dbContext.JsonEntities.Where(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(ct);
+        await _dbContext.IdEntities.Where(x => x.Report!.Tenant == tenant && x.FileId == filename).ExecuteDeleteAsync(ct);
+        await _dbContext.ReportEntities.Where(x => x.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(ct);
+        await transaction.CommitAsync(ct);
     }
+
+    private async Task<byte[]?> GetTokenHashAsync(byte tenant, string filename, CancellationToken ct) => await _dbContext.ReportEntities
+        .Where(x => x.Tenant == tenant && x.Id!.FileId == filename)
+        .Select(x => x.DeleteTokenHash)
+        .FirstOrDefaultAsync(ct);
+
+    private async Task<IActionResult> DeleteConfirmation(byte tenant, string filename, string token, CancellationToken ct)
+    {
+        if (ValidateRequest(filename) is { } errorResponse)
+            return errorResponse;
+
+        filename = Path.GetFileNameWithoutExtension(filename);
+
+        if (await GetTokenHashAsync(tenant, filename, ct) is not { } storedHash)
+            return StatusCode(StatusCodes.Status404NotFound);
+        if (!CryptographicOperations.FixedTimeEquals(storedHash, DeleteTokenGenerator.ComputeHash(token)))
+            return StatusCode(StatusCodes.Status403Forbidden);
+
+        return Content(DeleteConfirmationHtml(filename), "text/html; charset=utf-8");
+    }
+
+    private static string DeleteConfirmationHtml(string filename) =>
+        $$"""
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <meta name="robots" content="noindex, nofollow">
+              <title>Delete crash report {{filename}}</title>
+              <style>
+                  body { font-family: system-ui, sans-serif; background: #1e1e1e; color: #ddd; display: flex; min-height: 100vh; margin: 0; align-items: center; justify-content: center; }
+                  .card { background: #2a2a2a; padding: 2rem; border-radius: 8px; max-width: 28rem; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,.4); }
+                  h1 { font-size: 1.25rem; margin-top: 0; }
+                  code { background: #1e1e1e; padding: .1rem .35rem; border-radius: 4px; }
+                  button { font-size: 1rem; padding: .6rem 1.4rem; border: 0; border-radius: 6px; cursor: pointer; background: #c0392b; color: #fff; }
+                  button:disabled { opacity: .5; cursor: default; }
+                  #status { margin-top: 1rem; min-height: 1.25rem; }
+              </style>
+          </head>
+          <body>
+              <div class="card">
+                  <h1>Delete crash report <code>{{filename}}</code>?</h1>
+                  <p>This permanently removes the crash report. This action cannot be undone.</p>
+                  <button id="confirm" type="button">Delete permanently</button>
+                  <div id="status"></div>
+              </div>
+              <script>
+                  const btn = document.getElementById('confirm');
+                  const status = document.getElementById('status');
+                  btn.addEventListener('click', async () => {
+                      btn.disabled = true;
+                      status.textContent = 'Deleting...';
+                      try {
+                          const res = await fetch(window.location.href, { method: 'DELETE' });
+                          status.textContent = res.ok ? 'Crash report deleted.' : ('Failed to delete (HTTP ' + res.status + ').');
+                          if (!res.ok) btn.disabled = false;
+                      } catch (e) {
+                          status.textContent = 'Failed to delete: ' + e;
+                          btn.disabled = false;
+                      }
+                  });
+              </script>
+          </body>
+          </html>
+          """;
 }

@@ -82,12 +82,14 @@ public class HtmlHandlerV14
         controller.Request.Body.Seek(0, SeekOrigin.Begin);
         await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(controller.Request.Body, ct);
 
+        var deleteToken = DeleteTokenGenerator.Generate();
         await _dbContext.ReportEntities.AddAsync(new ReportEntity
         {
             CrashReportId = crashReportModel.Id,
             Tenant = tenant,
             Version = version,
             Created = DateTime.UtcNow,
+            DeleteTokenHash = DeleteTokenGenerator.ComputeHash(deleteToken),
         }, ct);
         await _dbContext.IdEntities.AddAsync(idEntity = new IdEntity { CrashReportId = crashReportModel.Id, FileId = _fileIdGenerator.Generate(ct), }, ct);
         await _dbContext.HtmlEntities.AddAsync(new HtmlEntity { CrashReportId = crashReportModel.Id, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
@@ -97,7 +99,9 @@ public class HtmlHandlerV14
         _reportTenant.Add(1, new[] { new KeyValuePair<string, object?>("Tenant", tenant) });
         _reportVersion.Add(1, new[] { new KeyValuePair<string, object?>("Version", version) });
 
-        return controller.Ok(tenant == 1 ? $"{_options.BaseUri}/{idEntity.FileId}" : $"{_options.BaseUri}/{tenant}/{idEntity.FileId}");
+        var url = tenant == 1 ? $"{_options.BaseUri}/{idEntity.FileId}" : $"{_options.BaseUri}/{tenant}/{idEntity.FileId}";
+        controller.Response.Headers[DeleteTokenGenerator.HeaderName] = $"{url}?{DeleteTokenGenerator.QueryName}={deleteToken}";
+        return controller.Ok(url);
     }
 
     private static (bool isValid, byte version, CrashReportModel? crashReportModel) ParseHtml(string html)
