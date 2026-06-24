@@ -62,7 +62,6 @@ public class Startup
 
         services.AddTransient<RandomNumberGenerator>(_ => RandomNumberGenerator.Create());
         services.AddScoped<FileIdGenerator>();
-        services.AddScoped<CrashReportStore>();
         services.AddScoped<HtmlHandlerV13>();
         services.AddScoped<JsonHandlerV13>();
         services.AddScoped<HtmlHandlerV14>();
