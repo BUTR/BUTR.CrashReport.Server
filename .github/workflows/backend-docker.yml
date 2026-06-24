@@ -13,6 +13,9 @@ on:
 jobs:
   build-and-publish-docker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v7
@@ -38,8 +41,8 @@ jobs:
       uses: docker/login-action@v4
       with:
         registry: ghcr.io
-        username: BUTR
-        password: ${{ secrets.TOKEN_GPR }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build and Push
       id: docker_build
