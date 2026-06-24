@@ -49,7 +49,6 @@ public class Startup
         services.Configure<AuthOptions>(_configuration.GetSection("Auth"));
         services.Configure<StorageOptions>(_configuration.GetSection("Storage"));
         services.Configure<CrashUploadOptions>(_configuration.GetSection("CrashUpload"));
-        services.Configure<ReportOptions>(_configuration.GetSection("Report"));
         services.Configure<UptimeKumaOptions>(_configuration.GetSection("UptimeKuma"));
 
         services.AddHttpClient<IHealthCheckPublisher, UptimeKumaHealthCheckPublisher>().ConfigureHttpClient((sp, client) =>
@@ -63,11 +62,12 @@ public class Startup
 
         services.AddTransient<RandomNumberGenerator>(_ => RandomNumberGenerator.Create());
         services.AddScoped<FileIdGenerator>();
+        services.AddScoped<CrashReportStore>();
         services.AddScoped<HtmlHandlerV13>();
         services.AddScoped<JsonHandlerV13>();
         services.AddScoped<HtmlHandlerV14>();
         services.AddScoped<JsonHandlerV14>();
-        services.AddSingleton<HexGenerator>();
+        services.AddSingleton<Base32Generator>();
         services.AddSingleton<RecyclableMemoryStreamManager>();
         services.AddSingleton<GZipCompressor>();
         //services.AddHostedService<DatabaseMigrator>();

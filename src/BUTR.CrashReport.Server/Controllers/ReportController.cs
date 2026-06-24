@@ -37,14 +37,9 @@ public class ReportController : ControllerBase
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
     }
 
+    // Accepts current Crockford Base32 ids and historical hex ids (hex digits are a subset of the alphabet).
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsHex(char c) => IsInRange(c, 'A', 'F') || IsInRange(c, '0', '9');
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsInRange(char c, char min, char max) => (uint) (c - min) <= (uint) (max - min);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool ValidateFileName(string? fileName) => fileName?.Length is 6 or 8 or 10 && fileName.All(IsHex);
+    private static bool ValidateFileName(string? fileName) => fileName?.Length is 6 or 8 or 10 && fileName.All(Base32Generator.IsValidChar);
 
     private StatusCodeResult? ValidateRequest(string filename)
     {

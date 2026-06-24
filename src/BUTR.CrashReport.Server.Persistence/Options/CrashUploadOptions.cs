@@ -7,8 +7,3 @@ public record CrashUploadOptions
 
     public string? BaseUri { get; set; }
 }
-
-public record ReportOptions
-{
-    public string? BaseUri { get; set; }
-}
