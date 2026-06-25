@@ -11,7 +11,6 @@ using Microsoft.Extensions.Logging;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
-using OpenTelemetry.ResourceDetectors.Container;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -74,7 +73,7 @@ public static class Program
                 openTelemetry
                     .ConfigureResource(builder =>
                     {
-                        builder.AddDetector(new ContainerResourceDetector());
+                        builder.AddContainerDetector();
                         builder.AddService(
                             ctx.HostingEnvironment.ApplicationName,
                             ctx.HostingEnvironment.EnvironmentName,
@@ -106,10 +105,7 @@ public static class Program
                 {
                     var tracingProtocol = oltpSection.GetValue<OtlpExportProtocol>(nameof(OtlpOptions.TracingProtocol));
                     openTelemetry.WithTracing(builder => builder
-                        .AddEntityFrameworkCoreInstrumentation(instrumentationOptions =>
-                        {
-                            instrumentationOptions.SetDbStatementForText = true;
-                        })
+                        .AddEntityFrameworkCoreInstrumentation()
                         .AddAspNetCoreInstrumentation(instrumentationOptions =>
                         {
                             instrumentationOptions.RecordException = true;

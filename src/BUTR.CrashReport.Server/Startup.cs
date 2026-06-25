@@ -8,6 +8,9 @@ using BUTR.CrashReport.Server.v14;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -17,9 +20,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IO;
 using Microsoft.Net.Http.Headers;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -27,11 +31,15 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 namespace BUTR.CrashReport.Server;
 
 public class Startup
 {
+    public const string ReportsCachePolicyName = "Reports";
+    public const string UploadRateLimitPolicyName = "upload";
+
     private readonly string _appName;
     private readonly IConfiguration _configuration;
 
@@ -71,7 +79,7 @@ public class Startup
         services.AddSingleton<GZipCompressor>();
         //services.AddHostedService<DatabaseMigrator>();
 
-        services.AddDbContextFactory<AppDbContext>(x => x.UseNpgsql(_configuration.GetConnectionString("Main"), y => y.MigrationsAssembly("BUTR.CrashReport.Server")));
+        services.AddPooledDbContextFactory<AppDbContext>(x => x.UseNpgsql(_configuration.GetConnectionString("Main"), y => y.MigrationsAssembly("BUTR.CrashReport.Server")));
 
         services.AddSwaggerGen(opt =>
         {
@@ -89,17 +97,11 @@ public class Startup
                 In = ParameterLocation.Header,
                 Type = SecuritySchemeType.Http,
                 Description = "Basic Authorization header using the Bearer scheme.",
-
-                Reference = new OpenApiReference
-                {
-                    Id = BasicDefaults.AuthenticationScheme,
-                    Type = ReferenceType.SecurityScheme
-                }
             };
-            opt.AddSecurityDefinition(basicSecurityScheme.Reference.Id, basicSecurityScheme);
-            opt.AddSecurityRequirement(new OpenApiSecurityRequirement
+            opt.AddSecurityDefinition(BasicDefaults.AuthenticationScheme, basicSecurityScheme);
+            opt.AddSecurityRequirement(document => new OpenApiSecurityRequirement
             {
-                { basicSecurityScheme, Array.Empty<string>() }
+                { new OpenApiSecuritySchemeReference(BasicDefaults.AuthenticationScheme, document), new List<string>() }
             });
 
             opt.DescribeAllParametersInCamelCase();
@@ -126,6 +128,9 @@ public class Startup
             opts.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
             opts.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            // Use source-generated metadata for the API DTOs; the reflection-based default resolver
+            // stays in the chain as a fallback for the external crash-report payload models.
+            opts.JsonSerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
         });
         services.Configure<JsonSerializerOptions>(opts =>
         {
@@ -152,7 +157,34 @@ public class Startup
         });
         */
 
-        services.AddResponseCaching();
+        // Stored reports are immutable, so the public read endpoints are cached and the entry is
+        // evicted by tag when a report is deleted (see ReportOutputCachePolicy / ReportController).
+        services.AddOutputCache(options =>
+        {
+            options.AddPolicy(ReportsCachePolicyName, builder => builder.AddPolicy<ReportOutputCachePolicy>());
+        });
+
+        services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.ForwardedForHeaderName = "CF-Connecting-IP";
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
+
+        // Protect the public, anonymous crash-upload endpoint from abuse. Partitioned per client IP.
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy(UploadRateLimitPolicyName, httpContext => RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 30,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }));
+        });
 
         services.AddHealthChecks()
             .AddNpgSql(_configuration.GetConnectionString("Main")!);
@@ -160,6 +192,9 @@ public class Startup
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+        // Must run first so every downstream component (rate limiter, logs, telemetry) sees the real client IP.
+        app.UseForwardedHeaders();
+
         if (env.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
@@ -172,7 +207,9 @@ public class Startup
 
         app.UseRouting();
 
-        app.UseResponseCaching();
+        app.UseRateLimiter();
+
+        app.UseOutputCache();
         //app.UseResponseCompression();
 
         app.UseAuthentication();

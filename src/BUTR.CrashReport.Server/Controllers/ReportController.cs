@@ -6,6 +6,7 @@ using BUTR.CrashReport.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 
 using System;
@@ -30,11 +31,13 @@ public class ReportController : ControllerBase
 
     private readonly AppDbContext _dbContext;
     private readonly GZipCompressor _gZipCompressor;
+    private readonly IOutputCacheStore _outputCacheStore;
 
-    public ReportController(AppDbContext dbContext, GZipCompressor gZipCompressor)
+    public ReportController(AppDbContext dbContext, GZipCompressor gZipCompressor, IOutputCacheStore outputCacheStore)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
+        _outputCacheStore = outputCacheStore ?? throw new ArgumentNullException(nameof(outputCacheStore));
     }
 
     // Accepts current Crockford Base32 ids and historical hex ids (hex digits are a subset of the alphabet).
@@ -82,6 +85,7 @@ public class ReportController : ControllerBase
     }
 
     [AllowAnonymous]
+    [OutputCache(PolicyName = Startup.ReportsCachePolicyName)]
     [HttpGet("{filename}.html")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "text/html")]
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -90,6 +94,7 @@ public class ReportController : ControllerBase
     public Task<IActionResult> ReportHtml(string filename, CancellationToken ct) => GetHtml(1, filename, ct);
 
     [AllowAnonymous]
+    [OutputCache(PolicyName = Startup.ReportsCachePolicyName)]
     [HttpGet("{tenant:int}/{filename}.html")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "text/html")]
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -98,6 +103,7 @@ public class ReportController : ControllerBase
     public Task<IActionResult> ReportHtml(byte tenant, string filename, CancellationToken ct) => GetHtml(tenant, filename, ct);
 
     [AllowAnonymous]
+    [OutputCache(PolicyName = Startup.ReportsCachePolicyName)]
     [HttpGet("{filename}.json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -106,6 +112,7 @@ public class ReportController : ControllerBase
     public Task<IActionResult> ReportJson(string filename, CancellationToken ct) => GetJson(1, filename, ct);
 
     [AllowAnonymous]
+    [OutputCache(PolicyName = Startup.ReportsCachePolicyName)]
     [HttpGet("{tenant:int}/{filename}.json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -114,6 +121,7 @@ public class ReportController : ControllerBase
     public Task<IActionResult> ReportJson(byte tenant, string filename, CancellationToken ct) => GetJson(tenant, filename, ct);
 
     [AllowAnonymous]
+    [OutputCache(PolicyName = Startup.ReportsCachePolicyName)]
     [HttpGet("{filename}")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -123,6 +131,7 @@ public class ReportController : ControllerBase
         ReportBasedOnAccept(1, filename, delete, ct);
 
     [AllowAnonymous]
+    [OutputCache(PolicyName = Startup.ReportsCachePolicyName)]
     [HttpGet("{tenant:int}/{filename}")]
     [ProducesResponseType(typeof(void), StatusCodes.Status200OK, "application/json")]
     [ProducesResponseType(typeof(void), StatusCodes.Status400BadRequest, "application/problem+json")]
@@ -281,6 +290,9 @@ public class ReportController : ControllerBase
         await _dbContext.IdEntities.Where(x => x.Report!.Tenant == tenant && x.FileId == filename).ExecuteDeleteAsync(ct);
         await _dbContext.ReportEntities.Where(x => x.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(ct);
         await transaction.CommitAsync(ct);
+
+        // Drop any cached representations of this report so it is not served after deletion.
+        await _outputCacheStore.EvictByTagAsync(ReportOutputCachePolicy.ReportTag(tenant, filename), ct);
     }
 
     private async Task<byte[]?> GetTokenHashAsync(byte tenant, string filename, CancellationToken ct) => await _dbContext.ReportEntities

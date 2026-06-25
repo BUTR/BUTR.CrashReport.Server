@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-jammy AS restore
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS restore
 ARG TARGETARCH
 WORKDIR /build
 
@@ -27,10 +27,17 @@ WORKDIR /build
 RUN dotnet publish "src/BUTR.CrashReport.Server/BUTR.CrashReport.Server.csproj" -c Release -a $TARGETARCH -o /app/publish;
 
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-jammy AS final
+# Chiseled (distroless) image: no shell or package manager, minimal attack surface, non-root by default.
+# Plain (non -extra) variant is fine because InvariantGlobalization is enabled (no ICU) and the app is all-UTC (no tzdata).
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
+# Disable the diagnostics IPC pipe in production to reduce attack surface.
+ENV DOTNET_EnableDiagnostics=0
+
 LABEL org.opencontainers.image.source="https://github.com/BUTR/BUTR.CrashReport.Server"
+# Run as the image's pre-created non-root user (UID 1654).
+USER $APP_UID
 EXPOSE 8080/tcp
 ENTRYPOINT ["dotnet", "BUTR.CrashReport.Server.dll"]

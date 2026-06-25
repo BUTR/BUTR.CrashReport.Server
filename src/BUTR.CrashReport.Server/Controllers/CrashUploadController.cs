@@ -7,6 +7,7 @@ using HtmlAgilityPack;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -19,6 +20,7 @@ namespace BUTR.CrashReport.Server.Controllers;
 
 [ApiController]
 [Route("/services")]
+[EnableRateLimiting(Startup.UploadRateLimitPolicyName)]
 public class CrashUploadController : ControllerBase
 {
     private readonly ILogger _logger;
