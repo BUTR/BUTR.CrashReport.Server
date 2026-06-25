@@ -36,5 +36,12 @@ public class ReportEntityConfiguration : BaseEntityConfiguration<ReportEntity>
             .HasPrincipalKey<ReportEntity>(x => x.CrashReportId)
             .OnDelete(DeleteBehavior.Cascade)
             .HasConstraintName("report_entity_json_entity_fkey");
+
+        builder.HasOne(x => x.OldHtml)
+            .WithOne(x => x.Report)
+            .HasForeignKey<OldHtmlEntity>(x => x.CrashReportId)
+            .HasPrincipalKey<ReportEntity>(x => x.CrashReportId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .HasConstraintName("report_entity_old_html_entity_fkey");
     }
 }

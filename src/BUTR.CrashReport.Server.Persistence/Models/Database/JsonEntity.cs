@@ -8,5 +8,4 @@ public sealed record JsonEntity : IEntity
     public required string Json { get; set; }
 
     public ReportEntity? Report { get; set; }
-    public IdEntity? Id { get; set; }
 }

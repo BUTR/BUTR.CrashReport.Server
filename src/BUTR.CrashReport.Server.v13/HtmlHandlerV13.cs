@@ -1,20 +1,15 @@
-﻿using BUTR.CrashReport.Bannerlord.Parser;
+using BUTR.CrashReport.Bannerlord.Parser;
 using BUTR.CrashReport.Models;
-using BUTR.CrashReport.Server.Contexts;
-using BUTR.CrashReport.Server.Models.Database;
-using BUTR.CrashReport.Server.Options;
+using BUTR.CrashReport.Renderer.Html;
+using BUTR.CrashReport.Server.Extensions;
 using BUTR.CrashReport.Server.Services;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Metrics;
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -24,84 +19,60 @@ namespace BUTR.CrashReport.Server.v13;
 
 public class HtmlHandlerV13
 {
+    /// <summary>The renderer's HTML and the serialized model for a legacy report, ready to persist.</summary>
+    public sealed record RebuiltLegacyReport(Guid CrashReportId, byte Version, string Html, string Json);
+
     private static readonly JsonSerializerOptions _jsonSerializerOptionsWeb = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() }
     };
 
     private readonly ILogger _logger;
-    private readonly AppDbContext _dbContext;
-    private readonly GZipCompressor _gZipCompressor;
-    private readonly FileIdGenerator _fileIdGenerator;
-    private CrashUploadOptions _options;
+    private readonly CrashReportStore _store;
 
-    private readonly Counter<int> _reportTenant;
-    private readonly Counter<int> _reportVersion;
-
-    public HtmlHandlerV13(
-        ILogger<HtmlHandlerV13> logger,
-        IOptionsMonitor<CrashUploadOptions> options,
-        AppDbContext dbContext,
-        GZipCompressor gZipCompressor,
-        FileIdGenerator fileIdGenerator,
-        IMeterFactory meterFactory)
+    public HtmlHandlerV13(ILogger<HtmlHandlerV13> logger, CrashReportStore store)
     {
-        var meter = meterFactory.Create("BUTR.CrashReportServer.Controllers.CrashUploadController", "1.0.0");
-        _reportTenant = meter.CreateCounter<int>("report-tenant", unit: "Count");
-        _reportVersion = meter.CreateCounter<int>("report-version", unit: "Count");
-
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-        _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
-        _fileIdGenerator = fileIdGenerator;
-
-        _options = options.CurrentValue ?? throw new ArgumentNullException(nameof(options));
-        options.OnChange(x => _options = x);
+        _store = store ?? throw new ArgumentNullException(nameof(store));
     }
 
-    public async Task<IActionResult> UploadHtmlAsync(ControllerBase controller, CancellationToken ct)
+    public async Task<IActionResult> UploadHtmlAsync(ControllerBase controller, string html, CancellationToken ct)
     {
-        controller.Request.EnableBuffering();
-
         var tenant = byte.TryParse(controller.Request.Headers["Tenant"].ToString(), out var tenantId) ? tenantId : (byte) 1;
 
-        using var streamReader = new StreamReader(controller.Request.Body);
-        var html = await streamReader.ReadToEndAsync(ct);
-        var (valid, version, crashReportModel) = ParseHtml(html);
-        if (!valid || crashReportModel is null)
+        // Never persist the uploaded HTML; rebuild it from the parsed model with the trusted renderer and store that
+        // (plus the model as JSON). The attacker-controlled upload bytes are dropped.
+        if (Rebuild(html) is not { } rebuilt)
         {
             _logger.LogWarning("Invalid HTML");
             return controller.StatusCode(StatusCodes.Status500InternalServerError);
         }
 
-        if (await _dbContext.IdEntities.FirstOrDefaultAsync(x => x.CrashReportId == crashReportModel.Id, ct) is { } idEntity)
-            return controller.Ok($"{_options.BaseUri}/{idEntity.FileId}");
+        var result = await _store.StoreAsync(rebuilt.CrashReportId, tenant, rebuilt.Version, rebuilt.Html.AsStream(), rebuilt.Json, ct);
+        return result.Respond(controller);
+    }
 
+    /// <summary>
+    /// Parses a legacy (&lt;13) report's HTML and returns the trusted renderer's HTML plus the serialized model,
+    /// or null when the input isn't a parseable legacy report. Used by the upload path and the one-off re-render
+    /// migration that replaces stored originals with sanitized output.
+    /// </summary>
+    public static RebuiltLegacyReport? Rebuild(string originalHtml)
+    {
+        var (valid, version, crashReportModel) = ParseHtml(originalHtml);
+        if (!valid || crashReportModel is null || version >= 13)
+            return null;
+
+        var html = CrashReportHtml.Build(crashReportModel, ParseLogs(originalHtml));
         var json = JsonSerializer.Serialize(crashReportModel, _jsonSerializerOptionsWeb);
+        return new RebuiltLegacyReport(crashReportModel.Id, version, html, json);
+    }
 
-        controller.Request.Body.Seek(0, SeekOrigin.Begin);
-        await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(controller.Request.Body, ct);
-
-        var deleteToken = DeleteTokenGenerator.Generate();
-        await _dbContext.ReportEntities.AddAsync(new ReportEntity
-        {
-            CrashReportId = crashReportModel.Id,
-            Tenant = tenant,
-            Version = version,
-            Created = DateTime.UtcNow,
-            DeleteTokenHash = DeleteTokenGenerator.ComputeHash(deleteToken),
-        }, ct);
-        await _dbContext.IdEntities.AddAsync(idEntity = new IdEntity { CrashReportId = crashReportModel.Id, FileId = _fileIdGenerator.Generate(ct), }, ct);
-        await _dbContext.HtmlEntities.AddAsync(new HtmlEntity { CrashReportId = crashReportModel.Id, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
-        if (version >= 13) await _dbContext.JsonEntities.AddAsync(new JsonEntity { CrashReportId = crashReportModel.Id, Json = json, }, ct);
-        await _dbContext.SaveChangesAsync(ct);
-
-        _reportTenant.Add(1, new[] { new KeyValuePair<string, object?>("Tenant", tenant) });
-        _reportVersion.Add(1, new[] { new KeyValuePair<string, object?>("Version", version) });
-
-        var url = tenant == 1 ? $"{_options.BaseUri}/{idEntity.FileId}" : $"{_options.BaseUri}/{tenant}/{idEntity.FileId}";
-        controller.Response.Headers[DeleteTokenGenerator.HeaderName] = $"{url}?{DeleteTokenGenerator.QueryName}={deleteToken}";
-        return controller.Ok(url);
+    // Legacy (<13) reports embed their log sources in the HTML; recover them so the rebuilt report keeps them.
+    private static IEnumerable<LogSource> ParseLogs(string html)
+    {
+        try { return CrashReportParser.ParseLegacyHtmlLogs(html); }
+        catch { return []; }
     }
 
     private static (bool isValid, byte version, CrashReportModel? crashReportModel) ParseHtml(string html)

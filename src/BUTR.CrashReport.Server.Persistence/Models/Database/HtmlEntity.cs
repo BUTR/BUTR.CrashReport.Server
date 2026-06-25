@@ -8,5 +8,4 @@ public sealed record HtmlEntity : IEntity
     public required byte[] DataCompressed { get; set; }
 
     public ReportEntity? Report { get; set; }
-    public IdEntity? Id { get; set; }
 }

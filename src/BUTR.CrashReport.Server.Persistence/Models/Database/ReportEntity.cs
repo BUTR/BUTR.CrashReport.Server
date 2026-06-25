@@ -18,4 +18,5 @@ public sealed record ReportEntity : IEntity
     public IdEntity? Id { get; set; }
     public HtmlEntity? Html { get; set; }
     public JsonEntity? Json { get; set; }
+    public OldHtmlEntity? OldHtml { get; set; }
 }

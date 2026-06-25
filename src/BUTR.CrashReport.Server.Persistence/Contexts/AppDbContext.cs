@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<IdEntity> IdEntities { get; set; }
     public DbSet<HtmlEntity> HtmlEntities { get; set; }
     public DbSet<JsonEntity> JsonEntities { get; set; }
+    public DbSet<OldHtmlEntity> OldHtmlEntities { get; set; }
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
@@ -22,5 +23,6 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new IdEntityConfiguration());
         modelBuilder.ApplyConfiguration(new HtmlEntityConfiguration());
         modelBuilder.ApplyConfiguration(new JsonEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new OldHtmlEntityConfiguration());
     }
 }
