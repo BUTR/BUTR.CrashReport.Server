@@ -121,8 +121,3 @@ public static class HostExtensions
         throw new InvalidOperationException($"Database has {pending.Length} pending migration(s); run the 'migrate' deploy step before serving.");
     }
 }
- }
-
-        return host;
-    }
-}
