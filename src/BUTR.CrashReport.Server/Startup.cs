@@ -222,6 +222,14 @@ public class Startup
 
         app.UseEndpoints(endpoints =>
         {
+            // The deployed image's tag, baked in at build time (BUILD_VERSION). The deploy pipeline polls this
+            // through the public URL to confirm the new version is actually the one serving. Never cached.
+            endpoints.MapGet("/version", (HttpContext ctx) =>
+            {
+                ctx.Response.Headers.CacheControl = "no-store";
+                return Results.Text(Environment.GetEnvironmentVariable("BUILD_VERSION") ?? "unknown", "text/plain");
+            }).AllowAnonymous();
+
             endpoints.MapControllers();
         });
     }

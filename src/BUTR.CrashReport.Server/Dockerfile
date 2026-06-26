@@ -36,6 +36,10 @@ COPY --from=publish /app/publish .
 # Disable the diagnostics IPC pipe in production to reduce attack surface.
 ENV DOTNET_EnableDiagnostics=0
 
+# Image tag baked in so the app can report it at /version (the deploy verifies the live version against this).
+ARG VERSION="unknown"
+ENV BUILD_VERSION=$VERSION
+
 LABEL org.opencontainers.image.source="https://github.com/BUTR/BUTR.CrashReport.Server"
 # Run as the image's pre-created non-root user (UID 1654).
 USER $APP_UID
