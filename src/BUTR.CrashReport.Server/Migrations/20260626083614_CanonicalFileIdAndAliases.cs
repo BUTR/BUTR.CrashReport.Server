@@ -64,11 +64,14 @@ namespace BUTR.CrashReport.Server.Migrations
                 FROM (SELECT crash_report_id, MIN(file_id) AS min_file_id FROM id_entity GROUP BY crash_report_id) sub
                 WHERE sub.crash_report_id = r.crash_report_id;
 
+                -- The canonical (min) file_id now lives on report_entity.file_id, so the aliases are simply every
+                -- id_entity row whose file_id differs from it. Joining on report_entity's PK avoids the previous
+                -- per-row correlated MIN() subquery (id_entity has no index on crash_report_id -> that was O(n^2)).
                 INSERT INTO id_alias_entity (file_id, crash_report_id, tenant)
                 SELECT i.file_id, i.crash_report_id, r.tenant
                 FROM id_entity i
                 JOIN report_entity r ON r.crash_report_id = i.crash_report_id
-                WHERE i.file_id <> (SELECT MIN(i2.file_id) FROM id_entity i2 WHERE i2.crash_report_id = i.crash_report_id);
+                WHERE i.file_id <> r.file_id;
                 """);
 
             // After backfill so the canonical file_ids are populated (otherwise all-'' rows would collide).
