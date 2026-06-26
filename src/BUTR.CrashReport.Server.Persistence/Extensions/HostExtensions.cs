@@ -18,9 +18,8 @@ public static class HostExtensions
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<TDbContext>>();
         try
         {
-            var migrations = (await dbContext.Database.GetPendingMigrationsAsync()).Count();
-            // Data-backfilling migrations can run well past the default 30s command timeout on large tables.
             dbContext.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
+            var migrations = (await dbContext.Database.GetPendingMigrationsAsync()).Count();
             await dbContext.Database.MigrateAsync();
             //if (migrations > 0) await dbContext.Database.ExecuteSqlRawAsync("VACUUM;");
         }
