@@ -1,5 +1,4 @@
 using BUTR.CrashReport.Server.Contexts;
-using BUTR.CrashReport.Server.Models.Database;
 using BUTR.CrashReport.Server.Options;
 
 using Microsoft.AspNetCore.Http;
@@ -60,35 +59,31 @@ public sealed class CrashReportStore
     /// <param name="json">The JSON representation to store, or null to store no JSON.</param>
     public async Task<StoreResult> StoreAsync(Guid crashReportId, byte tenant, byte version, Stream? htmlStream, string? json, CancellationToken ct)
     {
-        // The same crash report was already uploaded - return its existing URL, but no delete token (only the original uploader holds it).
-        if (await _dbContext.IdEntities.AsNoTracking().Include(x => x.Report).FirstOrDefaultAsync(x => x.CrashReportId == crashReportId, ct) is { } existing)
-            return new StoreResult(BuildUrl(existing.Report?.Tenant ?? 1, existing.FileId), null);
-
-        var fileId = _fileIdGenerator.Generate(ct);
         var deleteToken = DeleteTokenGenerator.Generate();
+        var deleteTokenHash = DeleteTokenGenerator.ComputeHash(deleteToken);
+        var fileIds = _fileIdGenerator.Generate();
+        var created = DateTime.UtcNow;
 
-        await _dbContext.ReportEntities.AddAsync(new ReportEntity
-        {
-            CrashReportId = crashReportId,
-            Tenant = tenant,
-            Version = version,
-            Created = DateTime.UtcNow,
-            DeleteTokenHash = DeleteTokenGenerator.ComputeHash(deleteToken),
-        }, ct);
-        await _dbContext.IdEntities.AddAsync(new IdEntity { CrashReportId = crashReportId, FileId = fileId, }, ct);
+        byte[]? htmlCompressed = null;
         if (htmlStream is not null)
         {
             await using var compressedHtmlStream = await _gZipCompressor.CompressAsync(htmlStream, ct);
-            await _dbContext.HtmlEntities.AddAsync(new HtmlEntity { CrashReportId = crashReportId, DataCompressed = compressedHtmlStream.ToArray(), }, ct);
+            htmlCompressed = compressedHtmlStream.ToArray();
         }
-        if (json is not null) await _dbContext.JsonEntities.AddAsync(new JsonEntity { CrashReportId = crashReportId, Json = json, }, ct);
-        await _dbContext.SaveChangesAsync(ct);
 
-        _reportTenant.Add(1, new KeyValuePair<string, object?>("Tenant", tenant));
-        _reportVersion.Add(1, new KeyValuePair<string, object?>("Version", version));
+        var result = await _dbContext
+            .InsertCrashReport(crashReportId, tenant, version, created, deleteTokenHash, fileIds, htmlCompressed, json)
+            .SingleAsync(ct);
 
-        var url = BuildUrl(tenant, fileId);
-        return new StoreResult(url, $"{url}?{DeleteTokenGenerator.QueryName}={deleteToken}");
+        if (result.Created)
+        {
+            _reportTenant.Add(1, new KeyValuePair<string, object?>("Tenant", tenant));
+            _reportVersion.Add(1, new KeyValuePair<string, object?>("Version", version));
+        }
+
+        var url = BuildUrl(result.Tenant, result.FileId);
+        // Only the original uploader gets a delete token; a re-upload (Created = false) returns the URL without one.
+        return new StoreResult(url, result.Created ? $"{url}?{DeleteTokenGenerator.QueryName}={deleteToken}" : null);
     }
 
     private string BuildUrl(byte tenant, string fileId) => tenant == 1

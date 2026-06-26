@@ -1,7 +1,10 @@
 using BUTR.CrashReport.Server.Contexts;
+using BUTR.CrashReport.Server.Migrations;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace BUTR.CrashReport.Server;
 
@@ -17,6 +20,8 @@ public sealed class AppDbContextDesignTimeFactory : IDesignTimeDbContextFactory<
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql("Host=localhost;Database=design;Username=design;Password=design",
                 x => x.MigrationsAssembly("BUTR.CrashReport.Server"))
+            .ReplaceService<IMigrationsSqlGenerator, CrashReportMigrationsSqlGenerator>()
+            .ReplaceService<IRelationalAnnotationProvider, CrashReportAnnotationProvider>()
             .Options;
         return new AppDbContext(options);
     }

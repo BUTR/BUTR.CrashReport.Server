@@ -1,6 +1,7 @@
 ﻿using AspNetCore.Authentication.Basic;
 
 using BUTR.CrashReport.Server.Contexts;
+using BUTR.CrashReport.Server.Migrations;
 using BUTR.CrashReport.Server.Options;
 using BUTR.CrashReport.Server.Services;
 using BUTR.CrashReport.Server.v13;
@@ -13,6 +14,8 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -80,7 +83,10 @@ public class Startup
         services.AddSingleton<GZipCompressor>();
         //services.AddHostedService<DatabaseMigrator>();
 
-        services.AddPooledDbContextFactory<AppDbContext>(x => x.UseNpgsql(_configuration.GetConnectionString("Main"), y => y.MigrationsAssembly("BUTR.CrashReport.Server")));
+        services.AddPooledDbContextFactory<AppDbContext>(x => x
+            .UseNpgsql(_configuration.GetConnectionString("Main"), y => y.MigrationsAssembly("BUTR.CrashReport.Server"))
+            .ReplaceService<IMigrationsSqlGenerator, CrashReportMigrationsSqlGenerator>()
+            .ReplaceService<IRelationalAnnotationProvider, CrashReportAnnotationProvider>());
 
         services.AddSwaggerGen(opt =>
         {
