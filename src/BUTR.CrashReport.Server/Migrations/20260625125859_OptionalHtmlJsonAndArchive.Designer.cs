@@ -3,6 +3,7 @@ using System;
 using BUTR.CrashReport.Server.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,37 +12,18 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BUTR.CrashReport.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260625125859_OptionalHtmlJsonAndArchive")]
+    partial class OptionalHtmlJsonAndArchive
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("BUTR:CrashReportInsertFunction:Enabled", true)
                 .HasAnnotation("ProductVersion", "10.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.CrashReportInsertResult", b =>
-                {
-                    b.Property<bool>("Created")
-                        .HasColumnType("boolean")
-                        .HasColumnName("o_created");
-
-                    b.Property<string>("FileId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("o_file_id");
-
-                    b.Property<byte>("Tenant")
-                        .HasColumnType("smallint")
-                        .HasColumnName("o_tenant");
-
-                    b.ToTable((string)null);
-
-                    b.ToView(null, (string)null);
-                });
 
             modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.HtmlEntity", b =>
                 {
@@ -60,30 +42,24 @@ namespace BUTR.CrashReport.Server.Migrations
                     b.ToTable("html_entity", (string)null);
                 });
 
-            modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.IdAliasEntity", b =>
+            modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.IdEntity", b =>
                 {
-                    b.Property<string>("FileId")
-                        .HasColumnType("text")
-                        .HasColumnName("file_id");
-
                     b.Property<Guid>("CrashReportId")
                         .HasColumnType("uuid")
                         .HasColumnName("crash_report_id");
 
-                    b.Property<byte>("Tenant")
-                        .HasColumnType("smallint")
-                        .HasColumnName("tenant");
+                    b.Property<string>("FileId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("file_id");
 
-                    b.HasKey("FileId")
-                        .HasName("id_alias_entity_pkey");
+                    b.HasKey("CrashReportId")
+                        .HasName("id_entity_pkey");
 
-                    b.HasIndex("CrashReportId");
+                    b.HasIndex("FileId")
+                        .HasDatabaseName("id_entity_file_id_idx");
 
-                    b.HasIndex("FileId", "Tenant")
-                        .IsUnique()
-                        .HasDatabaseName("id_alias_entity_file_id_tenant_idx");
-
-                    b.ToTable("id_alias_entity", (string)null);
+                    b.ToTable("id_entity", (string)null);
                 });
 
             modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.JsonEntity", b =>
@@ -134,11 +110,6 @@ namespace BUTR.CrashReport.Server.Migrations
                         .HasColumnType("bytea")
                         .HasColumnName("delete_token_hash");
 
-                    b.Property<string>("FileId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("file_id");
-
                     b.Property<byte>("Tenant")
                         .HasColumnType("smallint")
                         .HasColumnName("tenant");
@@ -149,10 +120,6 @@ namespace BUTR.CrashReport.Server.Migrations
 
                     b.HasKey("CrashReportId")
                         .HasName("report_entity_pkey");
-
-                    b.HasIndex("FileId", "Tenant")
-                        .IsUnique()
-                        .HasDatabaseName("report_entity_file_id_tenant_idx");
 
                     b.ToTable("report_entity", (string)null);
                 });
@@ -169,14 +136,14 @@ namespace BUTR.CrashReport.Server.Migrations
                     b.Navigation("Report");
                 });
 
-            modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.IdAliasEntity", b =>
+            modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.IdEntity", b =>
                 {
                     b.HasOne("BUTR.CrashReport.Server.Models.Database.ReportEntity", "Report")
-                        .WithMany("Aliases")
-                        .HasForeignKey("CrashReportId")
+                        .WithOne("Id")
+                        .HasForeignKey("BUTR.CrashReport.Server.Models.Database.IdEntity", "CrashReportId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("report_entity_id_alias_entity_fkey");
+                        .HasConstraintName("report_entity_id_entity_fkey");
 
                     b.Navigation("Report");
                 });
@@ -207,9 +174,9 @@ namespace BUTR.CrashReport.Server.Migrations
 
             modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.ReportEntity", b =>
                 {
-                    b.Navigation("Aliases");
-
                     b.Navigation("Html");
+
+                    b.Navigation("Id");
 
                     b.Navigation("Json");
 

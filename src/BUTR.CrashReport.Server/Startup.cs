@@ -1,6 +1,7 @@
 ﻿using AspNetCore.Authentication.Basic;
 
 using BUTR.CrashReport.Server.Contexts;
+using BUTR.CrashReport.Server.Migrations;
 using BUTR.CrashReport.Server.Options;
 using BUTR.CrashReport.Server.Services;
 using BUTR.CrashReport.Server.v13;
@@ -13,6 +14,8 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -70,16 +73,20 @@ public class Startup
 
         services.AddTransient<RandomNumberGenerator>(_ => RandomNumberGenerator.Create());
         services.AddScoped<FileIdGenerator>();
+        services.AddScoped<CrashReportStore>();
+        services.AddScoped<LegacyHtmlToJsonMigrator>();
         services.AddScoped<HtmlHandlerV13>();
         services.AddScoped<JsonHandlerV13>();
-        services.AddScoped<HtmlHandlerV14>();
         services.AddScoped<JsonHandlerV14>();
         services.AddSingleton<Base32Generator>();
         services.AddSingleton<RecyclableMemoryStreamManager>();
         services.AddSingleton<GZipCompressor>();
         //services.AddHostedService<DatabaseMigrator>();
 
-        services.AddPooledDbContextFactory<AppDbContext>(x => x.UseNpgsql(_configuration.GetConnectionString("Main"), y => y.MigrationsAssembly("BUTR.CrashReport.Server")));
+        services.AddPooledDbContextFactory<AppDbContext>(x => x
+            .UseNpgsql(_configuration.GetConnectionString("Main"), y => y.MigrationsAssembly("BUTR.CrashReport.Server"))
+            .ReplaceService<IMigrationsSqlGenerator, CrashReportMigrationsSqlGenerator>()
+            .ReplaceService<IRelationalAnnotationProvider, CrashReportAnnotationProvider>());
 
         services.AddSwaggerGen(opt =>
         {
@@ -128,8 +135,6 @@ public class Startup
             opts.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
             opts.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
-            // Use source-generated metadata for the API DTOs; the reflection-based default resolver
-            // stays in the chain as a fallback for the external crash-report payload models.
             opts.JsonSerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
         });
         services.Configure<JsonSerializerOptions>(opts =>
@@ -169,6 +174,7 @@ public class Startup
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             options.ForwardedForHeaderName = "CF-Connecting-IP";
             options.KnownNetworks.Clear();
+            options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
         });
 
@@ -192,7 +198,6 @@ public class Startup
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
-        // Must run first so every downstream component (rate limiter, logs, telemetry) sees the real client IP.
         app.UseForwardedHeaders();
 
         if (env.IsDevelopment())

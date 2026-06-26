@@ -32,15 +32,16 @@ public class ReportController : ControllerBase
     private readonly AppDbContext _dbContext;
     private readonly GZipCompressor _gZipCompressor;
     private readonly IOutputCacheStore _outputCacheStore;
+    private readonly LegacyHtmlToJsonMigrator _legacyHtmlToJsonMigrator;
 
-    public ReportController(AppDbContext dbContext, GZipCompressor gZipCompressor, IOutputCacheStore outputCacheStore)
+    public ReportController(AppDbContext dbContext, GZipCompressor gZipCompressor, IOutputCacheStore outputCacheStore, LegacyHtmlToJsonMigrator legacyHtmlToJsonMigrator)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
         _outputCacheStore = outputCacheStore ?? throw new ArgumentNullException(nameof(outputCacheStore));
+        _legacyHtmlToJsonMigrator = legacyHtmlToJsonMigrator ?? throw new ArgumentNullException(nameof(legacyHtmlToJsonMigrator));
     }
 
-    // Accepts current Crockford Base32 ids and historical hex ids (hex digits are a subset of the alphabet).
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool ValidateFileName(string? fileName) => fileName?.Length is 6 or 8 or 10 && fileName.All(Base32Generator.IsValidChar);
 
@@ -62,7 +63,11 @@ public class ReportController : ControllerBase
         if (ValidateRequest(filename) is { } errorResponse)
             return errorResponse;
 
-        if (await _dbContext.HtmlEntities.FirstOrDefaultAsync(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename, ct) is not { } file)
+        // Stored HTML is always the trusted renderer's output (legacy originals were re-rendered by the migration),
+        // so stream it straight from the database, passing the stored gzip through when the client accepts it.
+        if (await ResolveCrashReportIdAsync(tenant, filename, ct) is not { } crashReportId)
+            return StatusCode(StatusCodes.Status404NotFound);
+        if (await _dbContext.HtmlEntities.FirstOrDefaultAsync(x => x.CrashReportId == crashReportId, ct) is not { } file)
             return StatusCode(StatusCodes.Status404NotFound);
 
         if (Request.GetTypedHeaders().AcceptEncoding.Any(x => x.Value.Equals("gzip", StringComparison.InvariantCultureIgnoreCase)))
@@ -78,7 +83,9 @@ public class ReportController : ControllerBase
         if (ValidateRequest(filename) is { } errorResponse)
             return errorResponse;
 
-        if (await _dbContext.JsonEntities.FirstOrDefaultAsync(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename, ct) is not { } file)
+        if (await ResolveCrashReportIdAsync(tenant, filename, ct) is not { } crashReportId)
+            return StatusCode(StatusCodes.Status404NotFound);
+        if (await _dbContext.JsonEntities.FirstOrDefaultAsync(x => x.CrashReportId == crashReportId, ct) is not { } file)
             return StatusCode(StatusCodes.Status404NotFound);
 
         return Content(file.Json, "application/json; charset=utf-8");
@@ -171,7 +178,7 @@ public class ReportController : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
     [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
     [HttpsProtocol(Protocol = SslProtocols.Tls13)]
-    public ActionResult<IAsyncEnumerable<string>> GetAllFilenames(byte tenant) => Ok(_dbContext.ReportEntities.Where(x => x.Tenant == tenant).Select(x => x.Id!.FileId));
+    public ActionResult<IAsyncEnumerable<string>> GetAllFilenames(byte tenant) => Ok(_dbContext.ReportEntities.Where(x => x.Tenant == tenant).Select(x => x.FileId));
 
     [Authorize]
     [HttpPost("{tenant:int}/GetMetadata")]
@@ -185,10 +192,10 @@ public class ReportController : ControllerBase
 
         return Ok(_dbContext.ReportEntities
             .Where(x => x.Tenant == tenant)
-            .Where(x => filenamesWithExtension.Contains(x.Id!.FileId))
+            .Where(x => filenamesWithExtension.Contains(x.FileId))
             .Select(x => new FileMetadata
             {
-                File = x.Id!.FileId,
+                File = x.FileId,
                 Id = x.CrashReportId,
                 Version = x.Version,
                 Date = x.Created,
@@ -212,38 +219,25 @@ public class ReportController : ControllerBase
             .Where(x => x.Created > body.DateTime)
             .Select(x => new FileMetadata
             {
-                File = x.Id!.FileId,
-                Id = x.CrashReportId,
-                Version = x.Version,
-                Date = x.Created,
-            }));
-    }
-
-    /*
-    [Authorize]
-    [HttpPost("{tenant:int}/GetNewCrashReports")]
-    [ProducesResponseType(typeof(FileMetadata[]), StatusCodes.Status200OK, "application/json")]
-    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
-    [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
-    [HttpsProtocol(Protocol = SslProtocols.Tls13)]
-    public ActionResult<IEnumerable<FileMetadata>> RegenerateHtmlCrashReports(byte tenant, [FromBody] GetNewCrashReportsBody body, CancellationToken ct)
-    {
-        var diff = DateTime.UtcNow - body.DateTime;
-        if (diff.Ticks < 0 || diff > TimeSpan.FromDays(30))
-            return BadRequest();
-
-        return Ok(_dbContext.IdEntities
-            .Where(x => x.Tenant == tenant)
-            .Where(x => x.Created > body.DateTime)
-            .Select(x => new FileMetadata
-            {
                 File = x.FileId,
                 Id = x.CrashReportId,
                 Version = x.Version,
                 Date = x.Created,
             }));
     }
-    */
+
+    // Converts legacy (<13) reports stored as verbatim HTML into the canonical { CrashReport, LogSources } JSON and
+    // archives the original HTML; those reports are rendered on demand afterwards. This strips any markup injected
+    // into the original upload. v13+ reports are untouched (stored via the JSON endpoint, already rendered).
+    // Pass ?limit=N to bound the work per call; call repeatedly until the result's Migrated is 0 to drain the backlog.
+    [Authorize]
+    [HttpPost("MigrateLegacyHtmlToJson")]
+    [ProducesResponseType(typeof(LegacyHtmlToJsonMigrator.MigrationResult), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(void), StatusCodes.Status500InternalServerError, "application/problem+json")]
+    [ProducesResponseType(typeof(TLSError), StatusCodes.Status400BadRequest, "application/json")]
+    [HttpsProtocol(Protocol = SslProtocols.Tls13)]
+    public async Task<ActionResult<LegacyHtmlToJsonMigrator.MigrationResult>> MigrateLegacyHtmlToJson([FromQuery] int? limit, CancellationToken ct) =>
+        Ok(await _legacyHtmlToJsonMigrator.MigrateAsync(limit, ct));
 
     [AllowAnonymous]
     [HttpDelete("{filename}")]
@@ -284,21 +278,40 @@ public class ReportController : ControllerBase
     // Deletes a report and all its associated data atomically, so a failure mid-way cannot leave a partially-deleted report.
     private async Task DeleteReportAsync(byte tenant, string filename, CancellationToken ct)
     {
+        // Resolve the report from the requested file_id (canonical or a legacy alias), then delete by
+        // crash_report_id so all alias mappings and the archived HTML go too.
+        if (await ResolveCrashReportIdAsync(tenant, filename, ct) is not { } crashReportId)
+            return;
+
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(ct);
-        await _dbContext.HtmlEntities.Where(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(ct);
-        await _dbContext.JsonEntities.Where(x => x.Report!.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(ct);
-        await _dbContext.IdEntities.Where(x => x.Report!.Tenant == tenant && x.FileId == filename).ExecuteDeleteAsync(ct);
-        await _dbContext.ReportEntities.Where(x => x.Tenant == tenant && x.Id!.FileId == filename).ExecuteDeleteAsync(ct);
+        await _dbContext.HtmlEntities.Where(x => x.CrashReportId == crashReportId).ExecuteDeleteAsync(ct);
+        await _dbContext.JsonEntities.Where(x => x.CrashReportId == crashReportId).ExecuteDeleteAsync(ct);
+        await _dbContext.OldHtmlEntities.Where(x => x.CrashReportId == crashReportId).ExecuteDeleteAsync(ct);
+        await _dbContext.IdAliasEntities.Where(x => x.CrashReportId == crashReportId).ExecuteDeleteAsync(ct);
+        await _dbContext.ReportEntities.Where(x => x.CrashReportId == crashReportId).ExecuteDeleteAsync(ct);
         await transaction.CommitAsync(ct);
 
         // Drop any cached representations of this report so it is not served after deletion.
         await _outputCacheStore.EvictByTagAsync(ReportOutputCachePolicy.ReportTag(tenant, filename), ct);
     }
 
-    private async Task<byte[]?> GetTokenHashAsync(byte tenant, string filename, CancellationToken ct) => await _dbContext.ReportEntities
-        .Where(x => x.Tenant == tenant && x.Id!.FileId == filename)
-        .Select(x => x.DeleteTokenHash)
-        .FirstOrDefaultAsync(ct);
+    private async Task<byte[]?> GetTokenHashAsync(byte tenant, string filename, CancellationToken ct)
+    {
+        if (await ResolveCrashReportIdAsync(tenant, filename, ct) is not { } crashReportId)
+            return null;
+        return await _dbContext.ReportEntities
+            .Where(x => x.CrashReportId == crashReportId)
+            .Select(x => x.DeleteTokenHash)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    // Resolves a public file id to its report, in one round trip: the canonical report_entity.file_id unioned with
+    // the legacy id_alias_entity (a file id is unique within a tenant across both), so old repeat-upload URLs keep
+    // resolving. Returns null when the file id is unknown.
+    private Task<Guid?> ResolveCrashReportIdAsync(byte tenant, string filename, CancellationToken ct) =>
+        _dbContext.ReportEntities.Where(x => x.Tenant == tenant && x.FileId == filename).Select(x => (Guid?) x.CrashReportId)
+            .Concat(_dbContext.IdAliasEntities.Where(x => x.Tenant == tenant && x.FileId == filename).Select(x => (Guid?) x.CrashReportId))
+            .FirstOrDefaultAsync(ct);
 
     private async Task<IActionResult> DeleteConfirmation(byte tenant, string filename, string token, CancellationToken ct)
     {

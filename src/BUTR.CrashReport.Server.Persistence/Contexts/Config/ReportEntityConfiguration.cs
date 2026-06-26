@@ -13,15 +13,18 @@ public class ReportEntityConfiguration : BaseEntityConfiguration<ReportEntity>
         builder.Property(x => x.Tenant).HasColumnName("tenant");
         builder.Property(x => x.Version).HasColumnName("version");
         builder.Property(x => x.Created).HasColumnName("created");
+        builder.Property(x => x.FileId).HasColumnName("file_id");
         builder.Property(x => x.DeleteTokenHash).HasColumnName("delete_token_hash");
         builder.ToTable("report_entity").HasKey(x => x.CrashReportId).HasName("report_entity_pkey");
 
-        builder.HasOne(x => x.Id)
+        builder.HasIndex(x => new { x.FileId, x.Tenant }).IsUnique().HasDatabaseName("report_entity_file_id_tenant_idx");
+
+        builder.HasMany(x => x.Aliases)
             .WithOne(x => x.Report)
-            .HasForeignKey<IdEntity>(x => x.CrashReportId)
-            .HasPrincipalKey<ReportEntity>(x => x.CrashReportId)
+            .HasForeignKey(x => x.CrashReportId)
+            .HasPrincipalKey(x => x.CrashReportId)
             .OnDelete(DeleteBehavior.Cascade)
-            .HasConstraintName("report_entity_id_entity_fkey");
+            .HasConstraintName("report_entity_id_alias_entity_fkey");
 
         builder.HasOne(x => x.Html)
             .WithOne(x => x.Report)
@@ -36,5 +39,12 @@ public class ReportEntityConfiguration : BaseEntityConfiguration<ReportEntity>
             .HasPrincipalKey<ReportEntity>(x => x.CrashReportId)
             .OnDelete(DeleteBehavior.Cascade)
             .HasConstraintName("report_entity_json_entity_fkey");
+
+        builder.HasOne(x => x.OldHtml)
+            .WithOne(x => x.Report)
+            .HasForeignKey<OldHtmlEntity>(x => x.CrashReportId)
+            .HasPrincipalKey<ReportEntity>(x => x.CrashReportId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .HasConstraintName("report_entity_old_html_entity_fkey");
     }
 }

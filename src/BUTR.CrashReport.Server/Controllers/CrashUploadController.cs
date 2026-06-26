@@ -27,7 +27,6 @@ public class CrashUploadController : ControllerBase
     private readonly CrashUploadOptions _options;
     private readonly HtmlHandlerV13 _htmlHandlerV13;
     private readonly JsonHandlerV13 _jsonHandlerV13;
-    private readonly HtmlHandlerV14 _htmlHandlerV14;
     private readonly JsonHandlerV14 _jsonHandlerV14;
 
     public CrashUploadController(
@@ -35,14 +34,12 @@ public class CrashUploadController : ControllerBase
         IOptionsSnapshot<CrashUploadOptions> options,
         HtmlHandlerV13 htmlHandlerV13,
         JsonHandlerV13 jsonHandlerV13,
-        HtmlHandlerV14 htmlHandlerV14,
         JsonHandlerV14 jsonHandlerV14)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options.Value ?? throw new ArgumentNullException(nameof(options));
         _htmlHandlerV13 = htmlHandlerV13;
         _jsonHandlerV13 = jsonHandlerV13;
-        _htmlHandlerV14 = htmlHandlerV14;
         _jsonHandlerV14 = jsonHandlerV14;
     }
 
@@ -112,8 +109,6 @@ public class CrashUploadController : ControllerBase
             }
         }
 
-        Request.EnableBuffering();
-
         using var streamReader = new StreamReader(Request.Body);
         var html = await streamReader.ReadToEndAsync(ct);
         if (!TryParseVersion(html, out var version))
@@ -122,11 +117,9 @@ public class CrashUploadController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
 
-        Request.Body.Seek(0, SeekOrigin.Begin);
+        // Only legacy (<13) reports are uploaded as HTML; v13+ are always uploaded as JSON.
         if (version <= 13)
-            return await _htmlHandlerV13.UploadHtmlAsync(this, ct);
-        if (version == 14)
-            return await _htmlHandlerV14.UploadHtmlAsync(this, ct);
+            return await _htmlHandlerV13.UploadHtmlAsync(this, html, ct);
 
         _logger.LogWarning("Crash report version is invalid: {CrashReportVersion}", version);
         return StatusCode(StatusCodes.Status500InternalServerError);
