@@ -27,7 +27,7 @@ public static class Program
 {
     private const string OltpSectionName = "Oltp";
 
-    public static async Task Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -37,16 +37,43 @@ public static class Program
 
         try
         {
-            Log.Information("Starting web application");
-
             var builder = CreateHostBuilder(args);
             var host = builder.Build();
-            await host.SeedDbContextAsync<AppDbContext>();
-            await host.RunAsync();
+
+            // Migrations are explicit deploy steps, not a boot-time side effect: the deploy stops the service,
+            // runs 'migrate' (or 'migrate-down' on rollback) as a one-shot, then starts 'serve'.
+            var command = args.Length > 0 ? args[0] : "serve";
+            switch (command)
+            {
+                case "migrate":
+                    return await host.MigrateDatabaseAsync<AppDbContext>();
+
+                case "migrate-down":
+                    if (args.Length < 2)
+                    {
+                        Log.Fatal("'migrate-down' requires a target migration id (use '0' to revert all)");
+                        return 2;
+                    }
+                    return await host.MigrateDatabaseDownAsync<AppDbContext>(args[1]);
+
+                case "current-migration":
+                    return await host.PrintCurrentMigrationAsync<AppDbContext>();
+
+                case "serve":
+                    Log.Information("Starting web application");
+                    await host.EnsureDatabaseUpToDateAsync<AppDbContext>();
+                    await host.RunAsync();
+                    return 0;
+
+                default:
+                    Log.Fatal("Unknown command '{Command}'. Expected one of: serve, migrate, migrate-down <id>, current-migration", command);
+                    return 2;
+            }
         }
         catch (Exception ex)
         {
             Log.Fatal(ex, "Application terminated unexpectedly");
+            return 1;
         }
         finally
         {
