@@ -1,71 +1,24 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
-
-using System;
-using System.Reflection;
-using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace BUTR.CrashReport.Server.Migrations
 {
     /// <summary>
-    /// Seeds the compression dictionaries that are baked into the migrations assembly as embedded <c>.bin</c> resources
-    /// (see <c>Migrations/Dictionaries/README.md</c>) as the <b>active</b> dictionaries, so new uploads compress with a
-    /// dictionary from the first request. A <b>no-op when no dictionary files are embedded</b> - the schema migration can
-    /// ship before the dictionaries are trained; add the files and redeploy (or create dictionaries via the web service).
+    /// Intentionally a no-op. Seeding the embedded compression dictionaries used to happen here as inline
+    /// <c>INSERT ... decode('&lt;hex&gt;','hex')</c> statements, but the dictionaries are multi-megabyte blobs and EF Core
+    /// logs the full command text - that flooded the deploy log (tens of MB of hex per dictionary on a single line) and
+    /// stalled the streamed deploy. Seeding now runs as a parameterized, idempotent post-migrate step
+    /// (<see cref="BUTR.CrashReport.Server.Extensions.DictionarySeeder"/>, invoked after migrations in the 'migrate'
+    /// command) where the byte[] travels as a redacted parameter (<c>@p='?'</c>) instead of an inline literal.
+    /// This migration is kept so its id remains in <c>__EFMigrationsHistory</c> for environments that already applied it.
     /// </summary>
     public partial class SeedCompressionDictionaries : Migration
     {
-        // Embedded resource name -> ...Migrations.Dictionaries.dict.t{tenant}.{json|html}.v{version}.bin
-        private static readonly Regex DictName = new(@"\.Migrations\.Dictionaries\.dict\.t(\d+)\.(json|html)\.v(\d+)\.bin$", RegexOptions.Compiled);
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder) { }
 
         /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            var assembly = typeof(SeedCompressionDictionaries).Assembly;
-            foreach (var resource in assembly.GetManifestResourceNames())
-            {
-                var match = DictName.Match(resource);
-                if (!match.Success) continue;
-
-                var tenant = short.Parse(match.Groups[1].Value);
-                var kind = match.Groups[2].Value == "html" ? 1 : 0;
-                var version = short.Parse(match.Groups[3].Value);
-
-                using var stream = assembly.GetManifestResourceStream(resource)!;
-                using var ms = new System.IO.MemoryStream();
-                stream.CopyTo(ms);
-                var hex = Convert.ToHexString(ms.ToArray());
-
-                // Demote any existing active dict for this key (the partial unique index allows only one), then insert
-                // the baked one active. now() is fine - dictionaries are append-only and identified by their surrogate id.
-                migrationBuilder.Sql($"UPDATE compression_dictionary SET is_active = false WHERE tenant = {tenant} AND kind = {kind} AND version = {version} AND is_active;");
-                migrationBuilder.Sql($"INSERT INTO compression_dictionary (tenant, kind, version, bytes, created, is_active) VALUES ({tenant}, {kind}, {version}, decode('{hex}', 'hex'), now(), true);");
-            }
-        }
-
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            var assembly = typeof(SeedCompressionDictionaries).Assembly;
-            foreach (var resource in assembly.GetManifestResourceNames())
-            {
-                var match = DictName.Match(resource);
-                if (!match.Success) continue;
-
-                var tenant = short.Parse(match.Groups[1].Value);
-                var kind = match.Groups[2].Value == "html" ? 1 : 0;
-                var version = short.Parse(match.Groups[3].Value);
-
-                // Only remove a seeded dict that nothing references yet - if rows already use it, it is in-use data and
-                // must be kept (so rollback never breaks on the FK).
-                migrationBuilder.Sql($"""
-                    DELETE FROM compression_dictionary cd
-                    WHERE cd.tenant = {tenant} AND cd.kind = {kind} AND cd.version = {version} AND cd.is_active
-                      AND NOT EXISTS (SELECT 1 FROM json_entity j WHERE j.dict_id = cd.id)
-                      AND NOT EXISTS (SELECT 1 FROM html_entity h WHERE h.dict_id = cd.id);
-                    """);
-            }
-        }
+        protected override void Down(MigrationBuilder migrationBuilder) { }
     }
 }
