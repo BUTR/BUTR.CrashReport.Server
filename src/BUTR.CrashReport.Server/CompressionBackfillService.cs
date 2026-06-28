@@ -147,7 +147,7 @@ public sealed class CompressionBackfillService : BackgroundService
             var payloads = new byte[batch.Count][];
             var dictIds = new short[batch.Count];
             await Parallel.ForAsync(0, batch.Count,
-                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
+                new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, options.BackfillParallelism), CancellationToken = ct },
                 async (i, token) =>
                 {
                     var (id, tenant, version, raw) = batch[i];

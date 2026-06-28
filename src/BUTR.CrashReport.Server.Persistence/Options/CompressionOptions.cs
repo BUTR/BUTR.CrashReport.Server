@@ -15,4 +15,6 @@ public record CompressionOptions
     public int BackfillBatchSize { get; set; } = 100;
 
     public int BackfillPauseMs { get; set; } = 500;
+
+    public int BackfillParallelism { get; set; } = 1;
 }
