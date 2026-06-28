@@ -61,6 +61,7 @@ public class Startup
         services.Configure<StorageOptions>(_configuration.GetSection("Storage"));
         services.Configure<CrashUploadOptions>(_configuration.GetSection("CrashUpload"));
         services.Configure<UptimeKumaOptions>(_configuration.GetSection("UptimeKuma"));
+        services.Configure<CompressionOptions>(_configuration.GetSection("Compression"));
 
         services.AddHttpClient<IHealthCheckPublisher, UptimeKumaHealthCheckPublisher>().ConfigureHttpClient((sp, client) =>
         {
@@ -74,6 +75,7 @@ public class Startup
         services.AddTransient<RandomNumberGenerator>(_ => RandomNumberGenerator.Create());
         services.AddScoped<FileIdGenerator>();
         services.AddScoped<CrashReportStore>();
+        services.AddScoped<CrashReportService>();
         services.AddScoped<LegacyHtmlToJsonMigrator>();
         services.AddScoped<HtmlHandlerV13>();
         services.AddScoped<JsonHandlerV13>();
@@ -81,6 +83,9 @@ public class Startup
         services.AddSingleton<Base32Generator>();
         services.AddSingleton<RecyclableMemoryStreamManager>();
         services.AddSingleton<GZipCompressor>();
+        services.AddSingleton<ZstdCompressionService>();
+        services.AddScoped<DictionaryService>();
+        services.AddHostedService<CompressionBackfillService>();
         //services.AddHostedService<DatabaseMigrator>();
 
         services.AddPooledDbContextFactory<AppDbContext>(x => x

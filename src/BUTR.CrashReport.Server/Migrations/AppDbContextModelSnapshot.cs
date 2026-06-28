@@ -23,6 +23,51 @@ namespace BUTR.CrashReport.Server.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.CompressionDictionaryEntity", b =>
+                {
+                    b.Property<short>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<short>("Id"));
+
+                    b.Property<byte[]>("Bytes")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("bytes");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("smallint")
+                        .HasColumnName("kind");
+
+                    b.Property<byte>("Tenant")
+                        .HasColumnType("smallint")
+                        .HasColumnName("tenant");
+
+                    b.Property<byte>("Version")
+                        .HasColumnType("smallint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("compression_dictionary_pkey");
+
+                    b.HasIndex("Tenant", "Kind", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("compression_dictionary_active_idx")
+                        .HasFilter("is_active");
+
+                    b.ToTable("compression_dictionary", (string)null);
+                });
+
             modelBuilder.Entity("BUTR.CrashReport.Server.Models.Database.CrashReportInsertResult", b =>
                 {
                     b.Property<bool>("Created")
@@ -54,8 +99,14 @@ namespace BUTR.CrashReport.Server.Migrations
                         .HasColumnType("bytea")
                         .HasColumnName("data_compressed");
 
+                    b.Property<short?>("DictId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("dict_id");
+
                     b.HasKey("CrashReportId")
                         .HasName("html_entity_pkey");
+
+                    b.HasIndex("DictId");
 
                     b.ToTable("html_entity", (string)null);
                 });
@@ -92,12 +143,21 @@ namespace BUTR.CrashReport.Server.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("crash_report_id");
 
+                    b.Property<byte[]>("DataCompressed")
+                        .HasColumnType("bytea")
+                        .HasColumnName("data_compressed");
+
+                    b.Property<short?>("DictId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("dict_id");
+
                     b.Property<string>("Json")
-                        .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("data");
 
                     b.HasKey("CrashReportId");
+
+                    b.HasIndex("DictId");
 
                     b.ToTable("json_entity", (string)null);
                 });
@@ -113,8 +173,14 @@ namespace BUTR.CrashReport.Server.Migrations
                         .HasColumnType("bytea")
                         .HasColumnName("data_compressed");
 
+                    b.Property<short?>("DictId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("dict_id");
+
                     b.HasKey("CrashReportId")
                         .HasName("old_html_entity_pkey");
+
+                    b.HasIndex("DictId");
 
                     b.ToTable("old_html_entity", (string)null);
                 });
@@ -166,6 +232,14 @@ namespace BUTR.CrashReport.Server.Migrations
                         .IsRequired()
                         .HasConstraintName("report_entity_html_entity_fkey");
 
+                    b.HasOne("BUTR.CrashReport.Server.Models.Database.CompressionDictionaryEntity", "Dictionary")
+                        .WithMany()
+                        .HasForeignKey("DictId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("html_entity_compression_dictionary_fkey");
+
+                    b.Navigation("Dictionary");
+
                     b.Navigation("Report");
                 });
 
@@ -190,6 +264,14 @@ namespace BUTR.CrashReport.Server.Migrations
                         .IsRequired()
                         .HasConstraintName("report_entity_json_entity_fkey");
 
+                    b.HasOne("BUTR.CrashReport.Server.Models.Database.CompressionDictionaryEntity", "Dictionary")
+                        .WithMany()
+                        .HasForeignKey("DictId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("json_entity_compression_dictionary_fkey");
+
+                    b.Navigation("Dictionary");
+
                     b.Navigation("Report");
                 });
 
@@ -201,6 +283,14 @@ namespace BUTR.CrashReport.Server.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("report_entity_old_html_entity_fkey");
+
+                    b.HasOne("BUTR.CrashReport.Server.Models.Database.CompressionDictionaryEntity", "Dictionary")
+                        .WithMany()
+                        .HasForeignKey("DictId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("old_html_entity_compression_dictionary_fkey");
+
+                    b.Navigation("Dictionary");
 
                     b.Navigation("Report");
                 });

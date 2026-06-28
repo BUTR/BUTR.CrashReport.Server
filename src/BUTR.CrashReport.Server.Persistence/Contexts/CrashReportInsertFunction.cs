@@ -1,4 +1,4 @@
-using BUTR.CrashReport.Server.Models.Database;
+﻿using BUTR.CrashReport.Server.Models.Database;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -40,8 +40,9 @@ public static class CrashReportInsertFunction
         var model = relationalModel.Model;
         return model.FindEntityType(typeof(ReportEntity))?.FindProperty(nameof(ReportEntity.FileId)) is not null
             && model.FindEntityType(typeof(IdAliasEntity)) is not null
-            && model.FindEntityType(typeof(HtmlEntity)) is not null
-            && model.FindEntityType(typeof(JsonEntity)) is not null;
+            && model.FindEntityType(typeof(HtmlEntity))?.FindProperty(nameof(HtmlEntity.DictId)) is not null
+            && model.FindEntityType(typeof(JsonEntity))?.FindProperty(nameof(JsonEntity.DataCompressed)) is not null
+            && model.FindEntityType(typeof(JsonEntity))?.FindProperty(nameof(JsonEntity.DictId)) is not null;
     }
 
     public static string BuildCreateSql(IRelationalModel relationalModel)
@@ -53,8 +54,8 @@ public static class CrashReportInsertFunction
 
         // Single source of truth for which columns each INSERT writes (order matches the VALUES lists below).
         string[] reportColumns = [nameof(ReportEntity.CrashReportId), nameof(ReportEntity.Tenant), nameof(ReportEntity.Version), nameof(ReportEntity.Created), nameof(ReportEntity.FileId), nameof(ReportEntity.DeleteTokenHash)];
-        string[] htmlColumns = [nameof(HtmlEntity.CrashReportId), nameof(HtmlEntity.DataCompressed)];
-        string[] jsonColumns = [nameof(JsonEntity.CrashReportId), nameof(JsonEntity.Json)];
+        string[] htmlColumns = [nameof(HtmlEntity.CrashReportId), nameof(HtmlEntity.DataCompressed), nameof(HtmlEntity.DictId)];
+        string[] jsonColumns = [nameof(JsonEntity.CrashReportId), nameof(JsonEntity.DataCompressed), nameof(JsonEntity.DictId)];
 
         // Fail fast (at model build / migration scaffold) if a touched table gained a required column the function
         // would not populate - otherwise that surfaces only as a runtime insert error against Postgres.
@@ -74,7 +75,9 @@ public static class CrashReportInsertFunction
                 p_delete_token_hash {{report.Type(nameof(ReportEntity.DeleteTokenHash))}},
                 p_file_ids {{fileIdType}}[],
                 p_html_compressed {{html.Type(nameof(HtmlEntity.DataCompressed))}},
-                p_json text
+                p_html_dict_id {{html.Type(nameof(HtmlEntity.DictId))}},
+                p_json_compressed {{json.Type(nameof(JsonEntity.DataCompressed))}},
+                p_json_dict_id {{json.Type(nameof(JsonEntity.DictId))}}
             ) RETURNS TABLE(o_file_id {{fileIdType}}, o_tenant {{report.Type(nameof(ReportEntity.Tenant))}}, o_created boolean)
             LANGUAGE plpgsql AS $func$
             DECLARE
@@ -98,12 +101,12 @@ public static class CrashReportInsertFunction
 
                         IF p_html_compressed IS NOT NULL THEN
                             INSERT INTO {{html.Name}} ({{html.Cols(htmlColumns)}})
-                            VALUES (p_crash_report_id, p_html_compressed);
+                            VALUES (p_crash_report_id, p_html_compressed, p_html_dict_id);
                         END IF;
-                        IF p_json IS NOT NULL THEN
-                            -- p_json arrives as text (what EF sends for a CLR string); cast to the column's type.
+                        IF p_json_compressed IS NOT NULL THEN
+                            -- Payloads arrive already zstd-compressed as bytea; p_*_dict_id is NULL when no dictionary was used.
                             INSERT INTO {{json.Name}} ({{json.Cols(jsonColumns)}})
-                            VALUES (p_crash_report_id, p_json::{{json.Type(nameof(JsonEntity.Json))}});
+                            VALUES (p_crash_report_id, p_json_compressed, p_json_dict_id);
                         END IF;
 
                         o_file_id := v_candidate; o_tenant := p_tenant; o_created := true;

@@ -1,5 +1,4 @@
-using BUTR.CrashReport.Server.Contexts;
-using BUTR.CrashReport.Server.Extensions;
+﻿using BUTR.CrashReport.Server.Contexts;
 using BUTR.CrashReport.Server.Models.Database;
 using BUTR.CrashReport.Server.v13;
 
@@ -7,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,15 +34,15 @@ public sealed class LegacyHtmlToJsonMigrator
 
     private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
     private readonly GZipCompressor _gZipCompressor;
+    private readonly ZstdCompressionService _zstd;
 
-    public LegacyHtmlToJsonMigrator(IDbContextFactory<AppDbContext> dbContextFactory, GZipCompressor gZipCompressor)
+    public LegacyHtmlToJsonMigrator(IDbContextFactory<AppDbContext> dbContextFactory, GZipCompressor gZipCompressor, ZstdCompressionService zstd)
     {
         _dbContextFactory = dbContextFactory ?? throw new ArgumentNullException(nameof(dbContextFactory));
         _gZipCompressor = gZipCompressor ?? throw new ArgumentNullException(nameof(gZipCompressor));
+        _zstd = zstd ?? throw new ArgumentNullException(nameof(zstd));
     }
 
-    // Legacy reports whose original HTML hasn't been archived yet. The OldHtmlEntity row is the migration marker,
-    // so re-runs skip everything already re-rendered without relying on deleting anything.
     private static IQueryable<Guid> Candidates(AppDbContext dbContext) => dbContext.HtmlEntities
         .Where(x => x.Report!.Version < 13)
         .Where(x => !dbContext.OldHtmlEntities.Any(o => o.CrashReportId == x.CrashReportId))
@@ -70,29 +69,37 @@ public sealed class LegacyHtmlToJsonMigrator
             var slice = ids.GetRange(offset, Math.Min(BatchSize, ids.Count - offset));
 
             await using var dbContext = await _dbContextFactory.CreateDbContextAsync(ct);
-            var htmlEntities = await dbContext.HtmlEntities.Where(x => slice.Contains(x.CrashReportId)).ToListAsync(ct);
+            var htmlEntities = await dbContext.HtmlEntities.Include(x => x.Report).Where(x => slice.Contains(x.CrashReportId)).ToListAsync(ct);
             foreach (var htmlEntity in htmlEntities)
             {
                 processed++;
 
                 var originalCompressed = htmlEntity.DataCompressed;
-                string original;
-                await using (var decompressed = await _gZipCompressor.DecompressAsync(originalCompressed, ct))
-                using (var reader = new StreamReader(decompressed))
-                    original = await reader.ReadToEndAsync(ct);
 
-                // Leave anything that no longer parses as a legacy report alone - no archive row is written, so it
-                // stays a candidate and a later run can retry it.
+                byte[] originalBytes;
+                if (htmlEntity.DictId is { } dictId)
+                {
+                    originalBytes = await _zstd.DecompressAsync(originalCompressed, dictId, ct);
+                }
+                else
+                {
+                    await using var decompressed = await _gZipCompressor.DecompressAsync(originalCompressed, ct);
+                    originalBytes = decompressed.ToArray();
+                }
+                var original = Encoding.UTF8.GetString(originalBytes);
+
                 if (HtmlHandlerV13.Rebuild(original) is not { } rebuilt)
                 {
                     skipped++;
                     continue;
                 }
 
-                // Archive the original, replace the live HTML with the rendered output, and store the model JSON.
-                await dbContext.OldHtmlEntities.AddAsync(new OldHtmlEntity { CrashReportId = htmlEntity.CrashReportId, DataCompressed = originalCompressed, }, ct);
-                await using (var compressed = await _gZipCompressor.CompressAsync(rebuilt.Html.AsStream(), ct))
-                    htmlEntity.DataCompressed = compressed.ToArray();
+                var (archiveCompressed, archiveDictId) = await _zstd.CompressAsync(originalBytes, htmlEntity.Report!.Tenant, CompressionDictionaryKind.Html, htmlEntity.Report!.Version, ct);
+                await dbContext.OldHtmlEntities.AddAsync(new OldHtmlEntity { CrashReportId = htmlEntity.CrashReportId, DataCompressed = archiveCompressed, DictId = archiveDictId, }, ct);
+
+                var (htmlCompressed, htmlDictId) = await _zstd.CompressAsync(Encoding.UTF8.GetBytes(rebuilt.Html), htmlEntity.Report!.Tenant, CompressionDictionaryKind.Html, htmlEntity.Report!.Version, ct);
+                htmlEntity.DataCompressed = htmlCompressed;
+                htmlEntity.DictId = htmlDictId;
                 await dbContext.JsonEntities.AddAsync(new JsonEntity { CrashReportId = htmlEntity.CrashReportId, Json = rebuilt.Json, }, ct);
                 migrated++;
             }

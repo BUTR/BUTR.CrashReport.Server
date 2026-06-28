@@ -38,6 +38,11 @@
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
   </ItemGroup>
 
+  <!-- Trained compression dictionaries baked into the migrations assembly; SeedCompressionDictionaries inserts them. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Migrations\Dictionaries\*.bin" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\BUTR.CrashReport.Server.Persistence\BUTR.CrashReport.Server.Persistence.csproj" />
     <ProjectReference Include="..\BUTR.CrashReport.Server.v13\BUTR.CrashReport.Server.v13.csproj" />
