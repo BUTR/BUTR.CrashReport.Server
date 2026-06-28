@@ -14,6 +14,10 @@ public class HtmlEntityConfiguration : BaseEntityConfiguration<HtmlEntity>
         builder.Property(x => x.DictId).HasColumnName("dict_id");
         builder.ToTable("html_entity").HasKey(x => x.CrashReportId).HasName("html_entity_pkey");
 
+        builder.HasIndex(x => x.CrashReportId)
+            .HasDatabaseName("ix_html_backfill")
+            .HasFilter("dict_id IS NULL");
+
         builder.HasOne(x => x.Dictionary)
             .WithMany()
             .HasForeignKey(x => x.DictId)

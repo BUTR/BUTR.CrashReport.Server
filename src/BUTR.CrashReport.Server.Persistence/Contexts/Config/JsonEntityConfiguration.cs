@@ -15,6 +15,10 @@ public class JsonEntityConfiguration : BaseEntityConfiguration<JsonEntity>
         builder.Property(x => x.DictId).HasColumnName("dict_id");
         builder.ToTable("json_entity").HasKey(x => x.CrashReportId);
 
+        builder.HasIndex(x => x.CrashReportId)
+            .HasDatabaseName("ix_json_backfill")
+            .HasFilter("dict_id IS NULL");
+
         builder.HasOne(x => x.Dictionary)
             .WithMany()
             .HasForeignKey(x => x.DictId)

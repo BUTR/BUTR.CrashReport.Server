@@ -91,12 +91,11 @@ public sealed class CompressionBackfillService : BackgroundService
 
     private static readonly BackfillTarget JsonTarget = new(
         "json", "json_entity", CompressionDictionaryKind.Json,
-        "e.data_compressed IS NULL AND e.data IS NOT NULL", "e.data::text", IsJson: true);
+        "e.dict_id IS NULL AND e.data IS NOT NULL", "e.data::text", IsJson: true);
 
     private static readonly BackfillTarget HtmlTarget = new(
         "html", "html_entity", CompressionDictionaryKind.Html,
-        "get_byte(e.data_compressed, 0) = 31 AND get_byte(e.data_compressed, 1) = 139 " +
-        "AND (r.version >= 13 OR EXISTS (SELECT 1 FROM old_html_entity o WHERE o.crash_report_id = e.crash_report_id))",
+        "e.dict_id IS NULL AND (r.version >= 13 OR EXISTS (SELECT 1 FROM old_html_entity o WHERE o.crash_report_id = e.crash_report_id))",
         "e.data_compressed", IsJson: false);
 
     private async Task<long> BackfillAsync(NpgsqlConnection connection, BackfillTarget target, CompressionOptions options, CancellationToken ct)
@@ -106,15 +105,20 @@ public sealed class CompressionBackfillService : BackgroundService
              SELECT e.crash_report_id, r.tenant, r.version, {target.PayloadCol}
              FROM {target.Table} e
              JOIN report_entity r ON r.crash_report_id = e.crash_report_id
-             JOIN compression_dictionary d ON d.tenant = r.tenant AND d.kind = {(int) target.Kind}
-                  AND d.version = (CASE WHEN r.version <= {ZstdCompressionService.LegacyMaxVersion} THEN {ZstdCompressionService.LegacyMaxVersion} ELSE r.version END)
-                  AND d.is_active
              WHERE r.version <= {ZstdCompressionService.LegacyMaxVersion} AND {target.NeedsWork}
+                  AND e.crash_report_id > @after
              ORDER BY e.crash_report_id
              LIMIT @n
              """;
-        var updateSql = $"UPDATE {target.Table} SET data_compressed = @c, dict_id = @d WHERE crash_report_id = @id";
+        var updateSql =
+            $"""
+             UPDATE {target.Table} AS e
+             SET data_compressed = u.c, dict_id = u.d
+             FROM unnest(@ids, @cs, @ds) AS u(id, c, d)
+             WHERE e.crash_report_id = u.id
+             """;
 
+        var after = Guid.Empty;
         long done = 0;
         while (!ct.IsCancellationRequested)
         {
@@ -122,6 +126,7 @@ public sealed class CompressionBackfillService : BackgroundService
             await using (var select = new NpgsqlCommand(selectSql, connection))
             {
                 select.Parameters.AddWithValue("n", options.BackfillBatchSize);
+                select.Parameters.AddWithValue("after", after);
                 select.CommandTimeout = 600;
                 await using var reader = await select.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
@@ -138,24 +143,54 @@ public sealed class CompressionBackfillService : BackgroundService
 
             if (batch.Count == 0) break;
 
-            await using var tx = await connection.BeginTransactionAsync(ct);
-            await using (var update = new NpgsqlCommand(updateSql, connection, (NpgsqlTransaction) tx))
-            {
-                var pC = update.Parameters.Add(new NpgsqlParameter("c", NpgsqlTypes.NpgsqlDbType.Bytea));
-                var pD = update.Parameters.Add(new NpgsqlParameter("d", NpgsqlTypes.NpgsqlDbType.Smallint));
-                var pId = update.Parameters.Add(new NpgsqlParameter("id", NpgsqlTypes.NpgsqlDbType.Uuid));
-                await update.PrepareAsync(ct);
-                foreach (var (id, tenant, version, raw) in batch)
+            var ids = new Guid[batch.Count];
+            var payloads = new byte[batch.Count][];
+            var dictIds = new short[batch.Count];
+            await Parallel.ForAsync(0, batch.Count,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
+                async (i, token) =>
                 {
-                    var (compressed, dictId) = await _zstd.CompressAsync(raw, tenant, target.Kind, version, ct);
-                    pC.Value = compressed;
-                    pD.Value = dictId;
-                    pId.Value = id;
-                    await update.ExecuteNonQueryAsync(ct);
-                    done++;
-                }
+                    var (id, tenant, version, raw) = batch[i];
+                    try
+                    {
+                        var (compressed, dictId) = await _zstd.CompressAsync(raw, tenant, target.Kind, version, token);
+                        ids[i] = id;
+                        payloads[i] = compressed;
+                        dictIds[i] = dictId;
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        // No active dictionary (and no tenant-1 fallback) for this row - skip it, don't kill the run.
+                        _logger.LogWarning(ex, "Compression backfill {Kind}: skipping row {Id} (tenant {Tenant})", target.Name, id, tenant);
+                    }
+                });
+
+            var okIds = new List<Guid>(batch.Count);
+            var okPayloads = new List<byte[]>(batch.Count);
+            var okDictIds = new List<short>(batch.Count);
+            for (var i = 0; i < batch.Count; i++)
+            {
+                if (payloads[i] is null) continue;
+                okIds.Add(ids[i]);
+                okPayloads.Add(payloads[i]);
+                okDictIds.Add(dictIds[i]);
             }
-            await tx.CommitAsync(ct);
+
+            if (okIds.Count > 0)
+            {
+                await using var tx = await connection.BeginTransactionAsync(ct);
+                await using var update = new NpgsqlCommand(updateSql, connection, tx);
+                update.Parameters.Add(new NpgsqlParameter("ids", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Uuid) { Value = okIds.ToArray() });
+                update.Parameters.Add(new NpgsqlParameter("cs", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Bytea) { Value = okPayloads.ToArray() });
+                update.Parameters.Add(new NpgsqlParameter("ds", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Smallint) { Value = okDictIds.ToArray() });
+                update.CommandTimeout = 600;
+                await update.ExecuteNonQueryAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            done += okIds.Count;
+
+            // Rows come back ordered by crash_report_id, so the last is the highest id in this batch.
+            after = batch[^1].Id;
 
             _logger.LogInformation("Compression backfill {Kind}: {Done} rows compressed", target.Name, done);
             if (options.BackfillPauseMs > 0) await Task.Delay(options.BackfillPauseMs, ct);
