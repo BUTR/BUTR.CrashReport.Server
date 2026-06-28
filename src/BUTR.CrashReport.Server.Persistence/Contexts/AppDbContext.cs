@@ -15,18 +15,15 @@ public class AppDbContext : DbContext
     public DbSet<HtmlEntity> HtmlEntities { get; set; }
     public DbSet<JsonEntity> JsonEntities { get; set; }
     public DbSet<OldHtmlEntity> OldHtmlEntities { get; set; }
+    public DbSet<CompressionDictionaryEntity> CompressionDictionaries { get; set; }
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    /// <summary>
-    /// Maps the <c>insert_crash_report</c> table-valued function. Tries each candidate file id until one is free
-    /// within the tenant, inserts the report and its optional html/json, and returns the assigned id in one round
-    /// trip. The function body is created/updated by migrations (see CrashReportInsertFunction).
-    /// </summary>
     public IQueryable<CrashReportInsertResult> InsertCrashReport(
         Guid crashReportId, byte tenant, byte version, DateTime created,
-        byte[] deleteTokenHash, string[] fileIds, byte[]? htmlCompressed, string? json) =>
-        FromExpression(() => InsertCrashReport(crashReportId, tenant, version, created, deleteTokenHash, fileIds, htmlCompressed, json));
+        byte[] deleteTokenHash, string[] fileIds,
+        byte[]? htmlCompressed, short? htmlDictId, byte[]? jsonCompressed, short? jsonDictId) =>
+        FromExpression(() => InsertCrashReport(crashReportId, tenant, version, created, deleteTokenHash, fileIds, htmlCompressed, htmlDictId, jsonCompressed, jsonDictId));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,6 +34,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfiguration(new HtmlEntityConfiguration());
         modelBuilder.ApplyConfiguration(new JsonEntityConfiguration());
         modelBuilder.ApplyConfiguration(new OldHtmlEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new CompressionDictionaryEntityConfiguration());
 
         // Keyless result of the insert_crash_report table-valued function (mapped via HasDbFunction below).
         // ToView(null) keeps EF from scaffolding a table for it - it's only ever read via the function.
@@ -53,7 +51,7 @@ public class AppDbContext : DbContext
         // only tells EF how to translate the call. No parameter store types are configured: HasStoreType on a TVF
         // parameter is not honored by the provider, so the function's parameters are typed to match what EF sends for
         // each CLR type (Guid->uuid, byte->smallint, DateTime->timestamp with time zone, string[]->text[],
-        // byte[]->bytea, string->text). The json string arrives as text and the function casts it to the column type.
+        // byte[]->bytea, short?->smallint). The html/json payloads arrive already zstd-compressed as bytea.
         modelBuilder.HasDbFunction(typeof(AppDbContext).GetMethod(nameof(InsertCrashReport))!).HasName(CrashReportInsertFunction.FunctionName);
 
         // Enable the insert_crash_report function. The actual SQL is generated from the fully-resolved relational
