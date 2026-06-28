@@ -46,7 +46,11 @@ public static class Program
             switch (command)
             {
                 case "migrate":
-                    return await host.MigrateDatabaseAsync<AppDbContext>();
+                    var migrateResult = await host.MigrateDatabaseAsync<AppDbContext>();
+                    if (migrateResult != 0) return migrateResult;
+                    // Seed embedded compression dictionaries as a parameterized, idempotent post-migrate step
+                    // (kept out of the migration itself so the multi-MB blobs don't flood the deploy log).
+                    return await host.SeedEmbeddedDictionariesAsync();
 
                 case "migrate-down":
                     if (args.Length < 2)

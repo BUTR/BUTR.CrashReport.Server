@@ -28,6 +28,14 @@ public sealed class DictionaryService
         _dbContextFactory = dbContextFactory ?? throw new ArgumentNullException(nameof(dbContextFactory));
     }
 
+    /// <summary>True if any dictionary (active or not) already exists for this tenant/kind/version key.</summary>
+    public async Task<bool> ExistsAsync(byte tenant, CompressionDictionaryKind kind, byte version, CancellationToken ct)
+    {
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(ct);
+        return await dbContext.CompressionDictionaries
+            .AnyAsync(x => x.Tenant == tenant && x.Kind == kind && x.Version == version, ct);
+    }
+
     public async Task<SetResult> SetActiveAsync(byte tenant, CompressionDictionaryKind kind, byte version, byte[] bytes, CancellationToken ct)
     {
         if (bytes is null || bytes.Length == 0)
