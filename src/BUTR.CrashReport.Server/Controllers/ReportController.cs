@@ -84,10 +84,12 @@ public class ReportController : ControllerBase
         return File(body, contentType, false);
     }
 
+    private static readonly BrotliCompressionOptions _brotliOptions = new() { Quality = 5 };
+
     private static byte[] BrotliCompress(byte[] data)
     {
         using var output = new MemoryStream();
-        using (var brotli = new BrotliStream(output, CompressionLevel.SmallestSize, leaveOpen: true))
+        using (var brotli = new BrotliStream(output, _brotliOptions, leaveOpen: true))
             brotli.Write(data, 0, data.Length);
         return output.ToArray();
     }
