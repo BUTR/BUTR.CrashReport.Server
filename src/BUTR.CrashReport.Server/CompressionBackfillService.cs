@@ -95,7 +95,7 @@ public sealed class CompressionBackfillService : BackgroundService
 
     private static readonly BackfillTarget HtmlTarget = new(
         "html", "html_entity", CompressionDictionaryKind.Html,
-        "e.dict_id IS NULL AND (r.version >= 13 OR EXISTS (SELECT 1 FROM old_html_entity o WHERE o.crash_report_id = e.crash_report_id))",
+        "e.dict_id IS NULL",
         "e.data_compressed", IsJson: false);
 
     private async Task<long> BackfillAsync(NpgsqlConnection connection, BackfillTarget target, CompressionOptions options, CancellationToken ct)
