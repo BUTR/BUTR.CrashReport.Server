@@ -24,10 +24,9 @@ public sealed class HttpsProtocolAttribute : Attribute, IAuthorizationFilter, IO
 
         if (filterContext.HttpContext.Features.Get<ITlsHandshakeFeature>() is not { } tlsHandshakeFeature)
         {
-            if (filterContext.HttpContext.Request.IsHttps)
-            {
-                throw new InvalidOperationException("ITlsHandshakeFeature is not found when https is enabled");
-            }
+            // TLS was terminated upstream (reverse proxy): ForwardedHeaders sets Request.IsHttps from
+            // X-Forwarded-Proto, but the internal connection is plain HTTP and exposes no handshake feature.
+            // We can't observe (let alone enforce) a minimum TLS version here, so skip the check.
             return;
         }
 
