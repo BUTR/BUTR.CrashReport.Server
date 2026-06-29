@@ -1,4 +1,4 @@
-using BUTR.CrashReport.Server.Models.Database;
+﻿using BUTR.CrashReport.Server.Models.Database;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

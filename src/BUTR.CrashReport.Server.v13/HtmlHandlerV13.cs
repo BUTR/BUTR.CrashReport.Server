@@ -1,4 +1,4 @@
-using BUTR.CrashReport.Bannerlord.Parser;
+﻿using BUTR.CrashReport.Bannerlord.Parser;
 using BUTR.CrashReport.Models;
 using BUTR.CrashReport.Renderer.Html;
 using BUTR.CrashReport.Server.Extensions;

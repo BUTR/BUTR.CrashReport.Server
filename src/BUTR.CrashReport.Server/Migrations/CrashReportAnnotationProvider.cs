@@ -1,4 +1,4 @@
-using BUTR.CrashReport.Server.Contexts;
+﻿using BUTR.CrashReport.Server.Contexts;
 
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;

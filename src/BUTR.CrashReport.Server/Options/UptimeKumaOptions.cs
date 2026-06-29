@@ -1,4 +1,4 @@
-namespace BUTR.CrashReport.Server.Options;
+﻿namespace BUTR.CrashReport.Server.Options;
 
 public sealed record UptimeKumaOptions
 {

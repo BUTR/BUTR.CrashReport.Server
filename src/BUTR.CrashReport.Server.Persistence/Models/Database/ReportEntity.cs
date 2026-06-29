@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using System;
+﻿using System;
+using System.Collections.Generic;
 
 namespace BUTR.CrashReport.Server.Models.Database;
 

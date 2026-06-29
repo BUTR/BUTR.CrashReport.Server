@@ -1,4 +1,4 @@
-using BUTR.CrashReport.Server.Services;
+﻿using BUTR.CrashReport.Server.Services;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.OutputCaching;

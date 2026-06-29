@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace BUTR.CrashReport.Server.Models.Database;
 

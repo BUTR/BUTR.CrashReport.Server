@@ -1,4 +1,4 @@
-using BUTR.CrashReport.Renderer.Html;
+﻿using BUTR.CrashReport.Renderer.Html;
 using BUTR.CrashReport.Server.Extensions;
 using BUTR.CrashReport.Server.Services;
 

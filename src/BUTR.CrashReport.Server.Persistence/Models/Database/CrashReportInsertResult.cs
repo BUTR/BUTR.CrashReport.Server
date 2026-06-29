@@ -1,4 +1,4 @@
-namespace BUTR.CrashReport.Server.Models.Database;
+﻿namespace BUTR.CrashReport.Server.Models.Database;
 
 public sealed class CrashReportInsertResult
 {

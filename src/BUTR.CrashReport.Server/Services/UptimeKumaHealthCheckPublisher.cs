@@ -21,7 +21,7 @@ public sealed class UptimeKumaHealthCheckPublisher : IHealthCheckPublisher
     {
         if (_httpClient.BaseAddress is null)
             return;
-        
+
         var response = await _httpClient.GetAsync($"?status={(report.Status == HealthStatus.Healthy ? "up" : "down")}&msg={Uri.EscapeDataString(report.Status.ToString())}&ping={report.TotalDuration.TotalMilliseconds.ToString(CultureInfo.InvariantCulture)}", ct);
         response.EnsureSuccessStatusCode();
     }

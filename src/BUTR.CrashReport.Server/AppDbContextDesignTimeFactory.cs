@@ -1,4 +1,4 @@
-using BUTR.CrashReport.Server.Contexts;
+﻿using BUTR.CrashReport.Server.Contexts;
 using BUTR.CrashReport.Server.Migrations;
 
 using Microsoft.EntityFrameworkCore;

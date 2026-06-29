@@ -1,4 +1,4 @@
-using BUTR.CrashReport.Server.Models.Database;
+﻿using BUTR.CrashReport.Server.Models.Database;
 using BUTR.CrashReport.Server.Services;
 
 using Microsoft.Extensions.DependencyInjection;
