@@ -110,10 +110,11 @@ public sealed class CompressionBackfillService : BackgroundService
              ORDER BY e.crash_report_id
              LIMIT @n
              """;
+        var clearOriginal = target.IsJson ? ", data = NULL" : "";
         var updateSql =
             $"""
              UPDATE {target.Table} AS e
-             SET data_compressed = u.c, dict_id = u.d
+             SET data_compressed = u.c, dict_id = u.d{clearOriginal}
              FROM unnest(@ids, @cs, @ds) AS u(id, c, d)
              WHERE e.crash_report_id = u.id
              """;
