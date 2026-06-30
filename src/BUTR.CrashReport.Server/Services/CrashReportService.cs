@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 using System;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,17 +42,11 @@ public sealed class CrashReportService
     {
         if (await _dbContext.JsonEntities
                 .Where(x => ResolveCrashReportIdQuery(tenant, filename).Contains(x.CrashReportId))
-                .Select(x => new { x.DataCompressed, x.DictId, x.Json })
+                .Select(x => new { x.DataCompressed, x.DictId })
                 .FirstOrDefaultAsync(ct) is not { } file)
             return null;
 
-        if (file.DataCompressed is { } compressed)
-            return await _zstd.DecompressAsync(compressed, file.DictId, ct);
-
-        if (file.Json is { } legacy)
-            return Encoding.UTF8.GetBytes(legacy);
-
-        return null;
+        return await _zstd.DecompressAsync(file.DataCompressed, file.DictId, ct);
     }
 
     public async Task<byte[]?> GetTokenHashAsync(byte tenant, string filename, CancellationToken ct)

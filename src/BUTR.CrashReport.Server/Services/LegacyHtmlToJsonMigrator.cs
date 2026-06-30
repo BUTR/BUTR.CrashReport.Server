@@ -100,7 +100,9 @@ public sealed class LegacyHtmlToJsonMigrator
                 var (htmlCompressed, htmlDictId) = await _zstd.CompressAsync(Encoding.UTF8.GetBytes(rebuilt.Html), htmlEntity.Report!.Tenant, CompressionDictionaryKind.Html, htmlEntity.Report!.Version, ct);
                 htmlEntity.DataCompressed = htmlCompressed;
                 htmlEntity.DictId = htmlDictId;
-                await dbContext.JsonEntities.AddAsync(new JsonEntity { CrashReportId = htmlEntity.CrashReportId, Json = rebuilt.Json, }, ct);
+
+                var (jsonCompressed, jsonDictId) = await _zstd.CompressAsync(Encoding.UTF8.GetBytes(rebuilt.Json), htmlEntity.Report!.Tenant, CompressionDictionaryKind.Json, htmlEntity.Report!.Version, ct);
+                await dbContext.JsonEntities.AddAsync(new JsonEntity { CrashReportId = htmlEntity.CrashReportId, DataCompressed = jsonCompressed, DictId = jsonDictId, }, ct);
                 migrated++;
             }
             await dbContext.SaveChangesAsync(ct);

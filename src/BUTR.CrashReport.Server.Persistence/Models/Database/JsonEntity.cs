@@ -6,9 +6,7 @@ public sealed class JsonEntity : IEntity
 {
     public required Guid CrashReportId { get; set; }
 
-    public string? Json { get; set; }
-
-    public byte[]? DataCompressed { get; set; }
+    public required byte[] DataCompressed { get; set; }
 
     public short? DictId { get; set; }
 
