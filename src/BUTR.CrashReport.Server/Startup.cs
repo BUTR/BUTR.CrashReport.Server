@@ -19,6 +19,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IO;
@@ -213,6 +214,21 @@ public class Startup
         app.UseSwagger();
         app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", _appName));
 
+        var wwwPath = Path.Combine(env.ContentRootPath, "www");
+        if (Directory.Exists(wwwPath))
+        {
+            var wwwFiles = new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(wwwPath),
+                RequestPath = "",
+                OnPrepareResponse = ctx =>
+                {
+                    ctx.Context.Response.Headers.CacheControl = "public, max-age=86400";
+                },
+            };
+            app.UseStaticFiles(wwwFiles);
+        }
+
         app.UseHealthChecks("/healthz");
 
         app.UseRouting();
@@ -227,8 +243,6 @@ public class Startup
 
         app.UseEndpoints(endpoints =>
         {
-            // The deployed image's tag, baked in at build time (BUILD_VERSION). The deploy pipeline polls this
-            // through the public URL to confirm the new version is actually the one serving. Never cached.
             endpoints.MapGet("/version", (HttpContext ctx) =>
             {
                 ctx.Response.Headers.CacheControl = "no-store";

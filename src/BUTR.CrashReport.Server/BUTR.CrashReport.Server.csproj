@@ -44,6 +44,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="www\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\BUTR.CrashReport.Server.Persistence\BUTR.CrashReport.Server.Persistence.csproj" />
     <ProjectReference Include="..\BUTR.CrashReport.Server.v13\BUTR.CrashReport.Server.v13.csproj" />
     <ProjectReference Include="..\BUTR.CrashReport.Server.v14\BUTR.CrashReport.Server.v14.csproj" />
